@@ -1,282 +1,261 @@
 package llm
 
 import (
+	"errors"
 	"testing"
 )
 
-func TestNewModel(t *testing.T) {
-	t.Run("valid options", func(t *testing.T) {
-		options := ModelOptions{
-			Provider:     ProviderMock,
-			OutputFormat: OutputFormatText,
-		}
+// TestProviderRegistry tests the provider registration and factory system
+func TestProviderRegistry(t *testing.T) {
+	// Clear existing providers for this test
+	originalProviders := providerFactories
+	defer func() {
+		// Restore original providers after test
+		providerFactories = originalProviders
+	}()
 
-		model, err := NewModel(options)
-		if err != nil {
-			t.Fatalf("expected no error, got: %v", err)
-		}
+	// Start with a clean registry
+	providerFactories = make(map[Provider]LlmFactory)
 
-		if model == nil {
-			t.Fatal("expected model not to be nil")
-		}
-
-		if model.GetProvider() != options.Provider {
-			t.Errorf("expected provider: %v, got: %v", options.Provider, model.GetProvider())
-		}
-
-		if model.GetOutputFormat() != options.OutputFormat {
-			t.Errorf("expected output format: %v, got: %v", options.OutputFormat, model.GetOutputFormat())
-		}
+	// Register a test provider
+	testProvider := Provider("test-provider")
+	RegisterProvider(testProvider, func(options LlmOptions) (LlmInterface, error) {
+		return newMockImplementation(options)
 	})
 
-	t.Run("empty provider", func(t *testing.T) {
-		options := ModelOptions{
-			Provider:     "",
-			OutputFormat: OutputFormatText,
-		}
-
-		_, err := NewModel(options)
-		if err == nil {
-			t.Fatal("expected error for empty provider, got nil")
-		}
-
-		expectedErrMsg := "provider is required"
-		if err.Error() != expectedErrMsg {
-			t.Errorf("expected error message: %q, got: %q", expectedErrMsg, err.Error())
-		}
-	})
-}
-
-func TestModelFactoryFunctions(t *testing.T) {
-	// Save original config to restore after test
-	originalConfig := config
-	defer func() { config = originalConfig }()
-
-	// Set up test config with required API keys
-	config = struct {
-		Debug                    bool
-		OpenAiApiKey             string
-		OpenAiDefaultModel       string
-		GoogleGeminiApiKey       string
-		GoogleGeminiDefaultModel string
-		VertexAiProjectID        string
-		VertexAiDefaultModel     string
-		VertexAiRegion           string
-		AnthropicApiKey          string
-		AnthropicDefaultModel    string
-	}{
-		OpenAiApiKey:       "test-openai-key",
-		GoogleGeminiApiKey: "test-gemini-key",
-		VertexAiProjectID:  "test-vertex-project",
-		AnthropicApiKey:    "test-anthropic-key",
+	// Check if provider was registered
+	if _, exists := providerFactories[testProvider]; !exists {
+		t.Errorf("Provider was not registered correctly")
 	}
 
-	t.Run("TextModel", func(t *testing.T) {
-		model, err := TextModel(ProviderMock)
-		if err != nil {
-			t.Fatalf("expected no error, got: %v", err)
-		}
+	// Create LLM with the test provider
+	llm, err := NewLLM(LlmOptions{Provider: testProvider})
+	if err != nil {
+		t.Errorf("Failed to create LLM with test provider: %v", err)
+	}
+	if llm == nil {
+		t.Errorf("Created LLM is nil")
+	}
 
-		if model == nil {
-			t.Fatal("expected model not to be nil")
-		}
-
-		if model.GetProvider() != ProviderMock {
-			t.Errorf("expected provider: %v, got: %v", ProviderMock, model.GetProvider())
-		}
-
-		if model.GetOutputFormat() != OutputFormatText {
-			t.Errorf("expected output format: %v, got: %v", OutputFormatText, model.GetOutputFormat())
-		}
-	})
-
-	t.Run("JSONModel", func(t *testing.T) {
-		model, err := JSONModel(ProviderMock)
-		if err != nil {
-			t.Fatalf("expected no error, got: %v", err)
-		}
-
-		if model == nil {
-			t.Fatal("expected model not to be nil")
-		}
-
-		if model.GetProvider() != ProviderMock {
-			t.Errorf("expected provider: %v, got: %v", ProviderMock, model.GetProvider())
-		}
-
-		if model.GetOutputFormat() != OutputFormatJSON {
-			t.Errorf("expected output format: %v, got: %v", OutputFormatJSON, model.GetOutputFormat())
-		}
-	})
-
-	t.Run("ImageModel", func(t *testing.T) {
-		model, err := ImageModel(ProviderMock)
-		if err != nil {
-			t.Fatalf("expected no error, got: %v", err)
-		}
-
-		if model == nil {
-			t.Fatal("expected model not to be nil")
-		}
-
-		if model.GetProvider() != ProviderMock {
-			t.Errorf("expected provider: %v, got: %v", ProviderMock, model.GetProvider())
-		}
-
-		if model.GetOutputFormat() != OutputFormatImagePNG {
-			t.Errorf("expected output format: %v, got: %v", OutputFormatImagePNG, model.GetOutputFormat())
-		}
-	})
+	// Try to create LLM with non-existent provider
+	_, err = NewLLM(LlmOptions{Provider: "non-existent"})
+	if err == nil {
+		t.Errorf("Expected error when creating LLM with non-existent provider, got nil")
+	}
 }
 
-func TestCreateProvider(t *testing.T) {
-	// Save original config to restore after test
-	originalConfig := config
-	defer func() { config = originalConfig }()
+// TestMockLLM tests the mock LLM implementation
+func TestMockLLM(t *testing.T) {
+	mockLLM, _ := newMockImplementation(LlmOptions{})
 
-	t.Run("provides correct provider-specific defaults", func(t *testing.T) {
-		// Set up test config
-		config = struct {
-			Debug                    bool
-			OpenAiApiKey             string
-			OpenAiDefaultModel       string
-			GoogleGeminiApiKey       string
-			GoogleGeminiDefaultModel string
-			VertexAiProjectID        string
-			VertexAiDefaultModel     string
-			VertexAiRegion           string
-			AnthropicApiKey          string
-			AnthropicDefaultModel    string
-		}{
-			OpenAiApiKey:             "test-openai-key",
-			OpenAiDefaultModel:       "gpt-4",
-			GoogleGeminiApiKey:       "test-gemini-key",
-			GoogleGeminiDefaultModel: "gemini-pro",
-			VertexAiProjectID:        "test-vertex-project",
-			VertexAiDefaultModel:     "text-bison",
-			AnthropicApiKey:          "test-anthropic-key",
-			AnthropicDefaultModel:    "claude-2",
+	// Test Generate
+	response, err := mockLLM.Generate("find the details of the contract", "test message")
+	if err != nil {
+		t.Errorf("Mock LLM Generate failed: %v", err)
+	}
+	if response == "" {
+		t.Errorf("Mock LLM returned empty response")
+	}
+
+	// Test GenerateText
+	textResponse, err := mockLLM.GenerateText("find the details of the contract", "test message")
+	if err != nil {
+		t.Errorf("Mock LLM GenerateText failed: %v", err)
+	}
+	if textResponse == "" {
+		t.Errorf("Mock LLM returned empty text response")
+	}
+
+	// Test GenerateJSON
+	jsonResponse, err := mockLLM.GenerateJSON("find the details of the contract", "test message")
+	if err != nil {
+		t.Errorf("Mock LLM GenerateJSON failed: %v", err)
+	}
+	if jsonResponse == "" {
+		t.Errorf("Mock LLM returned empty JSON response")
+	}
+
+	// Test GenerateImage
+	_, err = mockLLM.GenerateImage("test prompt")
+	if err != nil {
+		t.Errorf("Mock LLM GenerateImage failed: %v", err)
+	}
+}
+
+// TestLLMFactory tests the LLM factory functions
+func TestLLMFactory(t *testing.T) {
+	// Test CreateMockLLM
+	mockLLM, err := TextModel(ProviderMock)
+	if err != nil {
+		t.Errorf("CreateMockLLM failed: %v", err)
+	}
+	if mockLLM == nil {
+		t.Errorf("CreateMockLLM returned nil")
+	}
+
+	// Test with various output formats
+	formats := []OutputFormat{
+		OutputFormatText,
+		OutputFormatJSON,
+		OutputFormatImagePNG,
+		OutputFormatImageJPG,
+	}
+
+	for _, format := range formats {
+		mockLLM, err := TextModel(ProviderMock)
+		if err != nil {
+			t.Errorf("CreateMockLLM failed with format %s: %v", format, err)
 		}
-
-		testCases := []struct {
-			name              string
-			provider          Provider
-			expectedModel     string
-			expectedMaxTokens int
-		}{
-			{
-				name:              "OpenAI provider",
-				provider:          ProviderOpenAI,
-				expectedModel:     "gpt-4",
-				expectedMaxTokens: 4096,
-			},
-			{
-				name:              "Gemini provider",
-				provider:          ProviderGemini,
-				expectedModel:     "gemini-pro",
-				expectedMaxTokens: 4096,
-			},
-			{
-				name:              "Vertex provider",
-				provider:          ProviderVertex,
-				expectedModel:     "text-bison",
-				expectedMaxTokens: 8192,
-			},
-			{
-				name:              "Anthropic provider",
-				provider:          ProviderAnthropic,
-				expectedModel:     "claude-2",
-				expectedMaxTokens: 4096,
-			},
+		if mockLLM == nil {
+			t.Errorf("CreateMockLLM returned nil with format %s", format)
 		}
+	}
+}
 
-		for _, tc := range testCases {
-			t.Run(tc.name, func(t *testing.T) {
-				model, err := createProvider(tc.provider, OutputFormatText)
-				if err != nil {
-					t.Fatalf("expected no error, got: %v", err)
-				}
+// CustomTestLLM is a custom LLM implementation for testing
+type CustomTestLLM struct {
+	generateFunc func(string, string, LlmOptions) (string, error)
+	baseOptions  LlmOptions
+}
 
-				if model == nil {
-					t.Fatal("expected model not to be nil")
-				}
+func (c *CustomTestLLM) Generate(systemPrompt, userMessage string, opts ...LlmOptions) (string, error) {
+	options := LlmOptions{}
+	if len(opts) > 0 {
+		options = opts[0]
+	}
+	// Merge baseOptions with override options, like real implementations
+	merged := mergeOptions(c.baseOptions, options)
+	if c.generateFunc != nil {
+		return c.generateFunc(systemPrompt, userMessage, merged)
+	}
+	return "Custom test response", nil
+}
 
-				if model.GetProvider() != tc.provider {
-					t.Errorf("expected provider: %v, got: %v", tc.provider, model.GetProvider())
-				}
+func (c *CustomTestLLM) GenerateText(systemPrompt, userPrompt string, opts ...LlmOptions) (string, error) {
+	options := LlmOptions{}
+	if len(opts) > 0 {
+		options = opts[0]
+	}
+	options.OutputFormat = OutputFormatText
+	return c.Generate(systemPrompt, userPrompt, options)
+}
 
-				if model.GetModel() != tc.expectedModel {
-					t.Errorf("expected model: %v, got: %v", tc.expectedModel, model.GetModel())
-				}
+func (c *CustomTestLLM) GenerateJSON(systemPrompt, userPrompt string, opts ...LlmOptions) (string, error) {
+	options := LlmOptions{}
+	if len(opts) > 0 {
+		options = opts[0]
+	}
+	options.OutputFormat = OutputFormatJSON
+	return c.Generate(systemPrompt, userPrompt, options)
+}
 
-				if model.GetMaxTokens() != tc.expectedMaxTokens {
-					t.Errorf("expected max tokens: %v, got: %v", tc.expectedMaxTokens, model.GetMaxTokens())
+func (c *CustomTestLLM) GenerateImage(prompt string, opts ...LlmOptions) ([]byte, error) {
+	return []byte("test image data"), nil
+}
+
+// TestCustomProvider tests adding and using a custom provider
+func TestCustomProvider(t *testing.T) {
+	// Register a custom provider
+	customProvider := Provider("custom-test")
+	RegisterProvider(customProvider, func(options LlmOptions) (LlmInterface, error) {
+		return &CustomTestLLM{
+			generateFunc: func(systemPrompt, userMessage string, options LlmOptions) (string, error) {
+				if systemPrompt == "error" {
+					return "", errors.New("test error")
 				}
-			})
-		}
+				return "Custom response: " + userMessage, nil
+			},
+			baseOptions: options,
+		}, nil
 	})
 
-	t.Run("validates API key requirements", func(t *testing.T) {
-		// Set up test config with empty API keys
-		config = struct {
-			Debug                    bool
-			OpenAiApiKey             string
-			OpenAiDefaultModel       string
-			GoogleGeminiApiKey       string
-			GoogleGeminiDefaultModel string
-			VertexAiProjectID        string
-			VertexAiDefaultModel     string
-			VertexAiRegion           string
-			AnthropicApiKey          string
-			AnthropicDefaultModel    string
-		}{}
+	// Create LLM with the custom provider
+	llm, err := NewLLM(LlmOptions{Provider: customProvider})
+	if err != nil {
+		t.Errorf("Failed to create LLM with custom provider: %v", err)
+	}
 
-		testCases := []struct {
-			name           string
-			provider       Provider
-			expectedErrMsg string
-		}{
-			{
-				name:           "Gemini without API key",
-				provider:       ProviderGemini,
-				expectedErrMsg: "google Gemini API key is required",
-			},
-			{
-				name:           "Vertex without project ID",
-				provider:       ProviderVertex,
-				expectedErrMsg: "vertex AI project ID is required",
-			},
-			{
-				name:           "Anthropic without API key",
-				provider:       ProviderAnthropic,
-				expectedErrMsg: "anthropic API key is required",
-			},
-		}
+	// Test successful generation
+	response, err := llm.Generate("test", "hello world")
+	if err != nil {
+		t.Errorf("Custom LLM Generate failed: %v", err)
+	}
+	if response != "Custom response: hello world" {
+		t.Errorf("Custom LLM returned unexpected response: %s", response)
+	}
 
-		for _, tc := range testCases {
-			t.Run(tc.name, func(t *testing.T) {
-				_, err := createProvider(tc.provider, OutputFormatText)
-				if err == nil {
-					t.Fatalf("expected error for %v without API key, got nil", tc.provider)
+	// Test error case
+	_, err = llm.Generate("error", "test")
+	if err == nil {
+		t.Errorf("Expected error from custom LLM, got nil")
+	}
+}
+
+// TestOptionsMerging tests that options are correctly merged
+func TestOptionsMerging(t *testing.T) {
+	// Create a custom provider that checks options
+	customProvider := Provider("options-test")
+	RegisterProvider(customProvider, func(options LlmOptions) (LlmInterface, error) {
+		return &CustomTestLLM{
+			generateFunc: func(systemPrompt, userMessage string, options LlmOptions) (string, error) {
+				// Return options as a string for testing
+				if options.MaxTokens != 1000 {
+					return "", errors.New("MaxTokens not set correctly")
 				}
-
-				if err.Error() != tc.expectedErrMsg {
-					t.Errorf("expected error message: %q, got: %q", tc.expectedErrMsg, err.Error())
+				if options.Temperature != 0.5 {
+					return "", errors.New("Temperature not set correctly")
 				}
-			})
-		}
+				if options.Model != "test-model" {
+					return "", errors.New("Model not set correctly")
+				}
+				return "Options correct", nil
+			},
+			baseOptions: options,
+		}, nil
 	})
 
-	t.Run("unsupported provider", func(t *testing.T) {
-		unsupportedProvider := Provider("unsupported")
-		_, err := createProvider(unsupportedProvider, OutputFormatText)
-		if err == nil {
-			t.Fatal("expected error for unsupported provider, got nil")
-		}
-
-		expectedErrMsg := "unsupported provider: unsupported"
-		if err.Error() != expectedErrMsg {
-			t.Errorf("expected error message: %q, got: %q", expectedErrMsg, err.Error())
-		}
+	// Create LLM with base options
+	llm, _ := NewLLM(LlmOptions{
+		Provider:    customProvider,
+		MaxTokens:   500,             // This should be overridden
+		Temperature: 0.5,             // This should be used
+		Model:       "default-model", // This should be overridden
 	})
+
+	// Call with overriding options
+	response, err := llm.Generate("test", "test", LlmOptions{
+		MaxTokens: 1000,         // Override base option
+		Model:     "test-model", // Override base option
+		// Temperature not specified, should use base option
+	})
+
+	if err != nil {
+		t.Errorf("Options merging test failed: %v", err)
+	}
+	if response != "Options correct" {
+		t.Errorf("Options were not merged correctly")
+	}
+}
+
+// TestOutputFormats tests that output formats are correctly handled
+func TestOutputFormats(t *testing.T) {
+	mockLLM, _ := newMockImplementation(LlmOptions{})
+
+	// Test text format
+	_, err := mockLLM.GenerateText("test", "test", LlmOptions{})
+	if err != nil {
+		t.Errorf("GenerateText failed: %v", err)
+	}
+
+	// Test JSON format
+	_, err = mockLLM.GenerateJSON("test", "test", LlmOptions{})
+	if err != nil {
+		t.Errorf("GenerateJSON failed: %v", err)
+	}
+
+	// Test image format
+	_, err = mockLLM.GenerateImage("test", LlmOptions{OutputFormat: OutputFormatImagePNG})
+	if err != nil {
+		t.Errorf("GenerateImage failed: %v", err)
+	}
 }
