@@ -1,6 +1,6 @@
-module github.com/gouniverse/llm
+module github.com/dracory/llm
 
-go 1.24.0
+go 1.24.5
 
 require (
 	cloud.google.com/go/vertexai v0.13.3

@@ -5,7 +5,7 @@ Go package for Large Language Model (LLM) operations.
 ## Installation
 
 ```bash
-go get github.com/dracory/base/llm
+go get github.com/dracory/llm
 ```
 
 ## Usage
@@ -18,7 +18,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/dracory/base/llm"
+	"github.com/dracory/llm"
 )
 
 func main() {
