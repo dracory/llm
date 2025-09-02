@@ -17,10 +17,13 @@ type LlmInterface interface {
 	Generate(systemPrompt string, userMessage string, options ...LlmOptions) (string, error)
 }
 
-// LLMOptions contains configuration for LLM API calls
 type LlmOptions struct {
 	// Provider specifies which LLM provider to use
 	Provider Provider
+
+	// MockResponse, if not empty, will be returned by the mock implementation
+	// instead of making an actual API call. This is useful for testing.
+	MockResponse string `json:"-"`
 
 	// ApiKey specifies the API key for the LLM provider
 	ApiKey string

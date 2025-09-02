@@ -6,14 +6,17 @@ import (
 	"github.com/samber/lo"
 )
 
+// TextModel creates an LLM model for text output
 func TextModel(provider Provider) (LlmInterface, error) {
 	return createProvider(provider, OutputFormatText)
 }
 
+// JSONModel creates an LLM model for JSON output
 func JSONModel(provider Provider) (LlmInterface, error) {
 	return createProvider(provider, OutputFormatJSON)
 }
 
+// ImageModel creates an LLM model for image output
 func ImageModel(provider Provider) (LlmInterface, error) {
 	return createProvider(provider, OutputFormatImagePNG)
 }

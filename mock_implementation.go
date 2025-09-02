@@ -34,7 +34,17 @@ type mockImplementation struct {
 // =======================================================================
 
 func (c *mockImplementation) Generate(systemPrompt string, userMessage string, opts ...LlmOptions) (string, error) {
-	_ = lo.IfF(len(opts) > 0, func() LlmOptions { return opts[0] }).Else(LlmOptions{})
+	options := lo.FirstOr(opts, LlmOptions{})
+
+	// Return mock response if provided in options
+	if options.MockResponse != "" {
+		return options.MockResponse, nil
+	}
+
+	// Or use the one from the client options
+	if c.options.MockResponse != "" {
+		return c.options.MockResponse, nil
+	}
 
 	// Handle empty input
 	if userMessage == "" {

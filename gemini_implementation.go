@@ -9,17 +9,6 @@ import (
 	"google.golang.org/api/option"
 )
 
-// Example usage:
-//
-// llmEngine, err := llm.NewGemini(llm.LlmOptions{
-// 	ApiKey:    config.GoogleGeminiApiKey,
-// 	MaxTokens: 4096, // Suitable for blog post generation
-// 	Verbose:   config.Debug,
-// })
-// if err != nil {
-// 	return ctx, data, errors.New("failed to initialize LLM engine")
-// }
-
 // geminiImplementation implements LlmInterface for Gemini
 type geminiImplementation struct {
 	client    *genai.Client

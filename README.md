@@ -171,11 +171,33 @@ The `LlmOptions` struct provides configuration options for LLM requests:
 The package includes a mock implementation for testing:
 
 ```go
-// Create a mock LLM for testing
-mockLLM := llm.NewMock()
+### Using Mock Responses in Tests
 
-// Use in tests
-response, err := mockLLM.GenerateText("system", "user", llm.LlmOptions{})
+You can easily test your code by providing mock responses:
+
+```go
+// Create a mock LLM with a default response
+mockLLM, _ := llm.NewLLM(llm.LlmOptions{
+    Provider:     llm.ProviderMock,
+    MockResponse: "This is a mock response",
+})
+
+// Or provide per-call mock responses
+response, _ := mockLLM.GenerateText(
+    "system prompt",
+    "user message",
+    llm.LlmOptions{
+        MockResponse: "Specific response for this test case",
+    },
+)
+
+// The mock will return the provided response
+fmt.Println(response) // Output: Specific response for this test case
+```
+
+The mock will return the first non-empty MockResponse it finds, checking in this order:
+1. The options passed to the specific function call
+2. The options used when creating the LLM client
 ```
 
 
