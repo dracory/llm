@@ -1,0 +1,78 @@
+# LLM Package Documentation
+
+## Overview
+The LLM (Language Learning Model) package provides a unified interface for interacting with various AI language model providers in Go applications.
+
+## Supported Providers
+- OpenAI (GPT models)
+- Google Gemini
+- Google Vertex AI
+- Anthropic (Claude models)
+- Mock implementation for testing
+
+## Core Interface
+```go
+type LlmInterface interface {
+    GenerateText(systemPrompt, userPrompt string, options ...LlmOptions) (string, error)
+    GenerateJSON(systemPrompt, userPrompt string, options ...LlmOptions) (string, error)
+    GenerateImage(prompt string, options ...LlmOptions) ([]byte, error)
+    Generate(systemPrompt, userMessage string, options ...LlmOptions) (string, error) // Deprecated
+}
+```
+
+## Configuration Options (LlmOptions)
+- `Provider`: LLM provider to use (Required)
+- `Model`: Specific model to use (Required for non-mock providers)
+- `ApiKey`: API key for the provider (Required for most providers)
+- `ProjectID`: Required for Vertex AI
+- `Region`: Region for the provider (default: "europe-west1" for Vertex)
+- `MaxTokens`: Maximum tokens to generate (default: 4096, 8192 for Vertex)
+- `Temperature`: Controls randomness (default: 0.7)
+- `Verbose`: Enable verbose logging
+- `OutputFormat`: Control output format
+- `MockResponse`: For testing with mock provider
+
+## Factory Functions
+```go
+// Create a text generation model
+llm, err := TextModel(ProviderOpenAI)
+
+// Create a JSON generation model
+llm, err := JSONModel(ProviderOpenAI)
+
+// Create an image generation model
+llm, err := ImageModel(ProviderOpenAI)
+```
+
+## Example Usage
+```go
+// Create an LLM instance
+llm, err := TextModel(ProviderOpenAI)
+if err != nil {
+    log.Fatal(err)
+}
+
+// Generate text
+response, err := llm.GenerateText(
+    "You are a helpful assistant.",
+    "What is a contract?",
+)
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println(response)
+```
+
+## Adding a Custom Provider
+1. Implement the `LlmInterface`
+2. Register the provider:
+   ```go
+   RegisterProvider("my-provider", func(options LlmOptions) (LlmInterface, error) {
+       return &MyProviderImplementation{options: options}, nil
+   })
+   ```
+
+## Testing
+- Uses standard Go testing package
+- Includes mock implementation for testing
+- Test coverage for core functionality
