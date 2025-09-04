@@ -41,6 +41,10 @@ func createProvider(provider Provider, outputFormat OutputFormat) (LlmInterface,
 		return nil, fmt.Errorf("Anthropic API key is required")
 	}
 
+	if provider == ProviderOpenRouter && options.ApiKey == "" {
+		return nil, fmt.Errorf("OpenRouter API key is required")
+	}
+
 	// Skip model check for mock provider
 	if provider != ProviderMock && options.Model == "" {
 		return nil, fmt.Errorf("Model is required")
@@ -71,6 +75,7 @@ func createProvider(provider Provider, outputFormat OutputFormat) (LlmInterface,
 		ProviderVertex,
 		ProviderAnthropic,
 		ProviderMock,
+		ProviderOpenRouter,
 	}
 
 	if !lo.Contains(supportedProviders, provider) {

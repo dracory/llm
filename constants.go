@@ -23,5 +23,6 @@ const (
 	ProviderVertex    Provider = "vertex"
 	ProviderMock      Provider = "mock"
 	ProviderAnthropic Provider = "anthropic"
+	ProviderOpenRouter Provider = "openrouter"
 	ProviderCustom    Provider = "custom"
 )

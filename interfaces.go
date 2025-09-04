@@ -115,4 +115,8 @@ func init() {
 	RegisterProvider(ProviderAnthropic, func(options LlmOptions) (LlmInterface, error) {
 		return newAnthropicImplementation(options)
 	})
+
+	RegisterProvider(ProviderOpenRouter, func(options LlmOptions) (LlmInterface, error) {
+		return newOpenRouterImplementation(options)
+	})
 }
