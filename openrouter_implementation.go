@@ -75,6 +75,13 @@ func (o *openrouterImplementation) Generate(systemPrompt string, userMessage str
 		responseFormat.Type = openai.ChatCompletionResponseFormatTypeText
 	}
 
+	if o.verbose {
+		fmt.Printf("OpenRouter request: model=%s, maxTokens=%d, temperature=%f\n", model, maxTokens, temperature)
+		fmt.Printf("Response format: %v\n", responseFormat)
+		fmt.Printf("System prompt: %s\n", systemPrompt)
+		fmt.Printf("User prompt: %s\n", userMessage)
+	}
+
 	// Create request
 	req := openai.ChatCompletionRequest{
 		Model:          model,
@@ -97,10 +104,16 @@ func (o *openrouterImplementation) Generate(systemPrompt string, userMessage str
 	}
 
 	if len(resp.Choices) == 0 {
+		if o.verbose {
+			fmt.Printf("no response from OpenRouter")
+		}
 		return "", fmt.Errorf("no response from OpenRouter")
 	}
 
 	response := resp.Choices[0].Message.Content
+	if o.verbose {
+		fmt.Printf("OpenRouter response: %s\n", response)
+	}
 	return strings.TrimSpace(response), nil
 }
 
