@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	"cloud.google.com/go/vertexai/genai"
-	"github.com/gouniverse/utils"
 	"github.com/mingrammer/cfmt"
 	"github.com/samber/lo"
+	"github.com/spf13/cast"
 	"google.golang.org/api/option"
 )
 
@@ -54,7 +55,7 @@ func (c *vertexLlmImpl) Generate(systemPrompt string, userMessage string, opts .
 
 	ctx := context.Background()
 	vertexCredentialsJSON := `vertexapicredentials.json` // best move to vault
-	vertxCredentialsContent, err := utils.FileGetContents(vertexCredentialsJSON)
+	vertxCredentialsContent, err := os.ReadFile(vertexCredentialsJSON)
 	if err != nil {
 		return "", err
 	}
@@ -142,7 +143,7 @@ func (c *vertexLlmImpl) Generate(systemPrompt string, userMessage string, opts .
 		return "", err
 	}
 
-	str := utils.ToString(resp.Candidates[0].Content.Parts[0])
+	str := cast.ToString(resp.Candidates[0].Content.Parts[0])
 	return strings.TrimSpace(str), nil
 }
 
