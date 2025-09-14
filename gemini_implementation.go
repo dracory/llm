@@ -4,17 +4,15 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/google/generative-ai-go/genai"
 	"github.com/samber/lo"
-	"google.golang.org/api/option"
+	"google.golang.org/genai"
 )
 
 // geminiImplementation implements LlmInterface for Gemini
 type geminiImplementation struct {
-	client    *genai.Client
-	model     *genai.GenerativeModel
-	maxTokens int
-	verbose   bool
+	client  *genai.Client
+	model   string
+	verbose bool
 }
 
 // newGeminiImplementation creates a new Gemini provider implementation
@@ -23,8 +21,12 @@ func newGeminiImplementation(options LlmOptions) (LlmInterface, error) {
 		return nil, fmt.Errorf("Gemini API key not provided")
 	}
 
-	ctx := context.Background()
-	client, err := genai.NewClient(ctx, option.WithAPIKey(options.ApiKey))
+	// Create a new client with the API key
+	client, err := genai.NewClient(context.Background(), &genai.ClientConfig{
+		APIKey:  options.ApiKey,
+		Backend: genai.BackendGeminiAPI,
+	})
+
 	if err != nil {
 		if options.Verbose {
 			fmt.Printf("Failed to create Gemini client: %v\n", err)
@@ -33,38 +35,15 @@ func newGeminiImplementation(options LlmOptions) (LlmInterface, error) {
 	}
 
 	// Default to Gemini Flash model
-	var model *genai.GenerativeModel
+	modelName := GEMINI_MODEL_2_5_FLASH
 	if options.Model != "" {
-		model = client.GenerativeModel(options.Model)
-	} else {
-		model = client.GenerativeModel(GEMINI_MODEL_2_5_FLASH)
-	}
-
-	// Set safety settings to default (allow most content)
-	model.SafetySettings = []*genai.SafetySetting{
-		{
-			Category:  genai.HarmCategoryHarassment,
-			Threshold: genai.HarmBlockNone,
-		},
-		{
-			Category:  genai.HarmCategoryHateSpeech,
-			Threshold: genai.HarmBlockNone,
-		},
-		{
-			Category:  genai.HarmCategorySexuallyExplicit,
-			Threshold: genai.HarmBlockNone,
-		},
-		{
-			Category:  genai.HarmCategoryDangerousContent,
-			Threshold: genai.HarmBlockNone,
-		},
+		modelName = options.Model
 	}
 
 	return &geminiImplementation{
-		client:    client,
-		model:     model,
-		maxTokens: options.MaxTokens,
-		verbose:   options.Verbose,
+		client:  client,
+		model:   modelName,
+		verbose: options.Verbose,
 	}, nil
 }
 
@@ -76,62 +55,68 @@ func (g *geminiImplementation) Generate(systemPrompt string, userMessage string,
 		return "", fmt.Errorf("Gemini client not initialized")
 	}
 
-	ctx := context.Background()
-
-	// Combine system prompt and user message
-	prompt := fmt.Sprintf("%s\n\n%s", systemPrompt, userMessage)
-	generationConfig := genai.GenerationConfig{}
-
-	if options.MaxTokens > 0 || options.Temperature > 0 {
-		generationConfig.MaxOutputTokens = int32Ptr(options.MaxTokens)
-		generationConfig.Temperature = float32Ptr(float32(options.Temperature))
+	// Prepare the prompt with system and user message
+	prompt := systemPrompt
+	if userMessage != "" {
+		prompt += "\n\n" + userMessage
 	}
 
-	if options.OutputFormat == OutputFormatText {
-		generationConfig.ResponseMIMEType = "text/plain"
-	}
-
+	// Add format instructions if needed
 	if options.OutputFormat == OutputFormatJSON {
-		generationConfig.ResponseMIMEType = "application/json"
+		prompt += "\nYou must respond with valid JSON only. Do not include any text outside the JSON."
 	}
 
-	if options.OutputFormat == OutputFormatXML {
-		generationConfig.ResponseMIMEType = "application/xml"
+	// Create a text part with the prompt
+	textPart := &genai.Part{
+		Text: prompt,
 	}
 
-	if options.OutputFormat == OutputFormatYAML {
-		generationConfig.ResponseMIMEType = "application/yaml"
+	// Create content with the text part
+	content := &genai.Content{
+		Role:  "user",
+		Parts: []*genai.Part{textPart},
 	}
 
-	if options.OutputFormat == OutputFormatEnum {
-		generationConfig.ResponseMIMEType = "text/x.enum"
+	// Prepare generation config if needed
+	var genConfig *genai.GenerateContentConfig
+	if options.MaxTokens > 0 || options.Temperature > 0 {
+		genConfig = &genai.GenerateContentConfig{
+			MaxOutputTokens: int32(options.MaxTokens),
+		}
+		if options.Temperature > 0 {
+			genConfig.Temperature = genai.Ptr[float32](float32(options.Temperature))
+		}
 	}
-
-	if options.OutputFormat == OutputFormatImagePNG || options.OutputFormat == OutputFormatImageJPG {
-		generationConfig.ResponseMIMEType = "image/png"
-	}
-
-	g.model.GenerationConfig = generationConfig
 
 	// Generate response
-	resp, err := g.model.GenerateContent(ctx, genai.Text(prompt))
+	resp, err := g.client.Models.GenerateContent(
+		context.Background(),
+		g.model,
+		[]*genai.Content{content},
+		genConfig,
+	)
+
 	if err != nil {
 		if g.verbose {
 			fmt.Printf("Gemini generation error: %v\n", err)
 		}
-		return "", err
+		return "", fmt.Errorf("failed to generate content: %w", err)
 	}
 
-	if len(resp.Candidates) == 0 {
+	if len(resp.Candidates) == 0 || len(resp.Candidates[0].Content.Parts) == 0 {
 		return "", fmt.Errorf("no response from Gemini")
 	}
 
 	// Get the text from the first candidate
 	var result string
 	for _, part := range resp.Candidates[0].Content.Parts {
-		if text, ok := part.(genai.Text); ok {
-			result += string(text)
+		if part.Text != "" {
+			result += part.Text
 		}
+	}
+
+	if result == "" {
+		return "", fmt.Errorf("empty response from Gemini")
 	}
 
 	return result, nil
@@ -155,19 +140,9 @@ func (g *geminiImplementation) GenerateJSON(systemPrompt string, userPrompt stri
 
 // GenerateImage implements LlmInterface
 func (g *geminiImplementation) GenerateImage(prompt string, opts ...LlmOptions) ([]byte, error) {
-	options := lo.IfF(len(opts) > 0, func() LlmOptions { return opts[0] }).Else(LlmOptions{})
-
-	if options.OutputFormat != OutputFormatImagePNG && options.OutputFormat != OutputFormatImageJPG {
-		options.OutputFormat = OutputFormatImagePNG
-	}
-
-	raw, err := g.Generate(prompt, "", options)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return []byte(raw), nil
+	// Image generation is not directly supported in the current version of the Gemini API
+	// You would need to use a different API like DALL-E or Stable Diffusion for image generation
+	return nil, fmt.Errorf("image generation is not supported in this implementation")
 }
 
 func int32Ptr(i int) *int32 {
