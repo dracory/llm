@@ -26,7 +26,7 @@ func TestOpenAIIntegration(t *testing.T) {
 	skipIfNoAPIKey(t, "OPENAI_API_KEY")
 
 	// Create OpenAI LLM
-	llmEngine, err := TextModel(ProviderOpenAI)
+	llmEngine, err := TextModel(ProviderOpenAI, LlmOptions{})
 	if err != nil {
 		t.Fatalf("Failed to create OpenAI LLM: %v", err)
 	}
@@ -68,7 +68,7 @@ func TestGeminiIntegration(t *testing.T) {
 	skipIfNoAPIKey(t, "GEMINI_API_KEY")
 
 	// Create Gemini LLM
-	llmEngine, err := TextModel(ProviderGemini)
+	llmEngine, err := TextModel(ProviderGemini, LlmOptions{})
 	if err != nil {
 		t.Fatalf("Failed to create Gemini LLM: %v", err)
 	}
@@ -113,7 +113,7 @@ func TestVertexIntegration(t *testing.T) {
 	}
 
 	// Create Vertex LLM
-	llmEngine, err := TextModel(ProviderVertex)
+	llmEngine, err := TextModel(ProviderVertex, LlmOptions{})
 	if err != nil {
 		t.Fatalf("Failed to create Vertex LLM: %v", err)
 	}
@@ -155,7 +155,7 @@ func TestAnthropicIntegration(t *testing.T) {
 	skipIfNoAPIKey(t, "ANTHROPIC_API_KEY")
 
 	// Create Anthropic LLM
-	llmEngine, err := TextModel(ProviderAnthropic)
+	llmEngine, err := TextModel(ProviderAnthropic, LlmOptions{})
 
 	if err != nil {
 		t.Fatalf("Failed to create Anthropic LLM: %v", err)
@@ -227,7 +227,7 @@ func TestFactoryIntegration(t *testing.T) {
 			}
 
 			// Create LLM using factory
-			llmEngine, err := createProvider(p.provider, OutputFormatText)
+			llmEngine, err := createProvider(p.provider, OutputFormatText, LlmOptions{})
 			if err != nil {
 				t.Fatalf("Failed to create %s LLM: %v", p.name, err)
 			}

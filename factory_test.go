@@ -85,7 +85,7 @@ func TestMockLLM(t *testing.T) {
 // TestLLMFactory tests the LLM factory functions
 func TestLLMFactory(t *testing.T) {
 	// Test CreateMockLLM
-	mockLLM, err := TextModel(ProviderMock)
+	mockLLM, err := TextModel(ProviderMock, LlmOptions{})
 	if err != nil {
 		t.Errorf("CreateMockLLM failed: %v", err)
 	}
@@ -102,7 +102,7 @@ func TestLLMFactory(t *testing.T) {
 	}
 
 	for _, format := range formats {
-		mockLLM, err := TextModel(ProviderMock)
+		mockLLM, err := TextModel(ProviderMock, LlmOptions{})
 		if err != nil {
 			t.Errorf("CreateMockLLM failed with format %s: %v", format, err)
 		}

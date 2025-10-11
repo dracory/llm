@@ -28,7 +28,10 @@ The design follows the adapter pattern, allowing easy integration of new LLM pro
 
 ```go
 // Create an LLM instance with a specific provider
-llmEngine, err := llm.CreateProvider(llm.ProviderOpenAI, llm.OutputFormatText)
+llmEngine, err := llm.TextModel(llm.ProviderOpenAI, llm.LlmOptions{
+    ApiKey: os.Getenv("OPENAI_API_KEY"),
+    Model:  "gpt-4",
+})
 if err != nil {
     // Handle error
 }
@@ -37,15 +40,18 @@ if err != nil {
 response, err := llmEngine.GenerateText(
     "You are a helpful assistant.", // System prompt
     "What is a contract?",          // User message
-    llm.LlmOptions{},               // Use default options
 )
 ```
 
-### Using Helper Functions
+### Using Factory Functions
 
 ```go
-// Get an LLM engine with the default provider (from config)
-llmEngine := helpers.GetLLMEngine(llm.OutputFormatJSON)
+// Create a JSON model
+llmEngine, err := llm.JSONModel(llm.ProviderGemini, llm.LlmOptions{
+    ApiKey:      os.Getenv("GEMINI_API_KEY"),
+    Model:       "gemini-pro",
+    Temperature: 0.3,
+})
 
 // Generate JSON
 jsonResponse, err := llmEngine.GenerateJSON(
@@ -60,7 +66,7 @@ jsonResponse, err := llmEngine.GenerateJSON(
 ### Custom Configuration
 
 ```go
-// Create an LLM with custom options
+// Create an LLM with custom options using NewLLM directly
 llmEngine, err := llm.NewLLM(llm.LlmOptions{
     Provider:     llm.ProviderVertex,
     ProjectID:    "my-gcp-project",
@@ -71,13 +77,22 @@ llmEngine, err := llm.NewLLM(llm.LlmOptions{
     Verbose:      true,
     OutputFormat: llm.OutputFormatJSON,
 })
+
+// Or use factory functions for convenience
+llmEngine, err := llm.TextModel(llm.ProviderVertex, llm.LlmOptions{
+    ProjectID:   "my-gcp-project",
+    Region:      "europe-west1",
+    Model:       "gemini-2.5-flash",
+    MaxTokens:   8192,
+    Temperature: 0.7,
+})
 ```
 
 ## Adding a New Provider
 
 To add a new LLM provider:
 
-1. Create a new file `llm_yourprovider.go`
+1. Create a new file `yourprovider_implementation.go`
 2. Implement the `LlmInterface` interface
 3. Register your provider in the init function
 
@@ -86,18 +101,24 @@ Example:
 ```go
 // Define your provider type
 type YourProviderLLM struct {
+    options LlmOptions
     // Your provider-specific fields
 }
 
 // Implement the LlmInterface methods
-func (y *YourProviderLLM) Generate(systemPrompt, userMessage string, options LlmOptions) (string, error) {
+func (y *YourProviderLLM) Generate(systemPrompt, userMessage string, options ...LlmOptions) (string, error) {
+    // Merge options
+    opts := y.options
+    if len(options) > 0 {
+        opts = mergeOptions(opts, options[0])
+    }
     // Your implementation
 }
 
 // Register your provider in init()
 func init() {
-    RegisterProvider("yourprovider", func(options LlmOptions) LlmInterface {
-        return NewYourProviderLLM(options)
+    RegisterProvider(ProviderYourProvider, func(options LlmOptions) (LlmInterface, error) {
+        return newYourProviderImplementation(options)
     })
 }
 ```
@@ -109,16 +130,16 @@ The core interface that all LLM providers must implement:
 ```go
 type LlmInterface interface {
     // GenerateText generates a text response
-    GenerateText(systemPrompt string, userPrompt string, options LlmOptions) (string, error)
+    GenerateText(systemPrompt string, userPrompt string, options ...LlmOptions) (string, error)
 
     // GenerateJSON generates a JSON response
-    GenerateJSON(systemPrompt string, userPrompt string, options LlmOptions) (string, error)
+    GenerateJSON(systemPrompt string, userPrompt string, options ...LlmOptions) (string, error)
 
     // GenerateImage generates an image from a prompt
-    GenerateImage(prompt string, options LlmOptions) ([]byte, error)
+    GenerateImage(prompt string, options ...LlmOptions) ([]byte, error)
 
-    // Generate is the core method for generating content
-    Generate(systemPrompt string, userMessage string, options LlmOptions) (string, error)
+    // Generate is the core method for generating content (DEPRECATED)
+    Generate(systemPrompt string, userMessage string, options ...LlmOptions) (string, error)
 }
 ```
 
@@ -166,11 +187,40 @@ The `LlmOptions` struct provides configuration options for LLM requests:
 - Supports Claude models
 - Requires an Anthropic API key
 
+## Factory Functions
+
+The package provides convenient factory functions:
+
+- **`TextModel(provider, options)`** - Creates an LLM configured for text output
+- **`JSONModel(provider, options)`** - Creates an LLM configured for JSON output
+- **`ImageModel(provider, options)`** - Creates an LLM configured for image generation
+
+All factory functions require both a provider and options parameter:
+
+```go
+// Text model
+textLLM, err := llm.TextModel(llm.ProviderOpenAI, llm.LlmOptions{
+    ApiKey: os.Getenv("OPENAI_API_KEY"),
+    Model:  "gpt-4",
+})
+
+// JSON model
+jsonLLM, err := llm.JSONModel(llm.ProviderGemini, llm.LlmOptions{
+    ApiKey: os.Getenv("GEMINI_API_KEY"),
+    Model:  "gemini-pro",
+})
+
+// Image model
+imageLLM, err := llm.ImageModel(llm.ProviderOpenAI, llm.LlmOptions{
+    ApiKey: os.Getenv("OPENAI_API_KEY"),
+    Model:  "dall-e-3",
+})
+```
+
 ## Testing
 
 The package includes a mock implementation for testing:
 
-```go
 ### Using Mock Responses in Tests
 
 You can easily test your code by providing mock responses:

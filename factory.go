@@ -7,27 +7,25 @@ import (
 )
 
 // TextModel creates an LLM model for text output
-func TextModel(provider Provider) (LlmInterface, error) {
-	return createProvider(provider, OutputFormatText)
+func TextModel(provider Provider, options LlmOptions) (LlmInterface, error) {
+	return createProvider(provider, OutputFormatText, options)
 }
 
 // JSONModel creates an LLM model for JSON output
-func JSONModel(provider Provider) (LlmInterface, error) {
-	return createProvider(provider, OutputFormatJSON)
+func JSONModel(provider Provider, options LlmOptions) (LlmInterface, error) {
+	return createProvider(provider, OutputFormatJSON, options)
 }
 
 // ImageModel creates an LLM model for image output
-func ImageModel(provider Provider) (LlmInterface, error) {
-	return createProvider(provider, OutputFormatImagePNG)
+func ImageModel(provider Provider, options LlmOptions) (LlmInterface, error) {
+	return createProvider(provider, OutputFormatImagePNG, options)
 }
 
 // createProvider is a convenience function to create an LLM provider instance with common configurations
-func createProvider(provider Provider, outputFormat OutputFormat) (LlmInterface, error) {
-	options := LlmOptions{
-		Provider:     provider,
-		OutputFormat: outputFormat,
-		Verbose:      false,
-	}
+func createProvider(provider Provider, outputFormat OutputFormat, options LlmOptions) (LlmInterface, error) {
+	// Override provider and output format with the specified values
+	options.Provider = provider
+	options.OutputFormat = outputFormat
 
 	if provider == ProviderGemini && options.ApiKey == "" {
 		return nil, fmt.Errorf("Google Gemini API key is required")
