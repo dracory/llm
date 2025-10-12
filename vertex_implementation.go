@@ -18,7 +18,7 @@ import (
 // const GEMINI_MODEL_2_0_FLASH_LITE = "gemini-2.0-flash-lite-001"
 const GEMINI_MODEL_2_0_FLASH_EXP_IMAGE_GENERATION = "gemini-2.0-flash-exp-image-generation"
 
-const GEMINI_MODEL_2_5_FLASH_LITE = "gemini-2.5-flash-lite-preview-06-17"
+const GEMINI_MODEL_2_5_FLASH_LITE = "gemini-2.5-flash-lite"
 const GEMINI_MODEL_2_5_FLASH = "gemini-2.5-flash"
 const GEMINI_MODEL_2_5_PRO = "gemini-2.5-pro"
 
