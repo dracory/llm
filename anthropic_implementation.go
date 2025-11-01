@@ -87,9 +87,7 @@ func buildAnthropicHTTPClient(providerOptions map[string]any) (*http.Client, err
 	}
 
 	spkiHash = strings.TrimSpace(spkiHash)
-	if strings.HasPrefix(spkiHash, "sha256/") {
-		spkiHash = strings.TrimPrefix(spkiHash, "sha256/")
-	}
+	spkiHash = strings.TrimPrefix(spkiHash, "sha256/")
 
 	if spkiHash != "" {
 		expectedPin, err := base64.StdEncoding.DecodeString(spkiHash)

@@ -173,6 +173,7 @@ The `LlmOptions` struct provides configuration options for LLM requests:
 ### OpenAI
 - Supports GPT-3.5 and GPT-4 models
 - Requires an OpenAI API key
+- Image generation returns decoded image bytes (PNG) rather than URLs
 
 ### Gemini
 - Supports Gemini Pro models

@@ -2,6 +2,7 @@ package llm
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"strings"
 
@@ -130,6 +131,7 @@ func (o *openaiImplementation) GenerateImage(prompt string, opts ...LlmOptions) 
 		Prompt: prompt,
 		Size:   openai.CreateImageSize1024x1024,
 		N:      1,
+		ResponseFormat: openai.CreateImageResponseFormatB64JSON,
 	}
 
 	resp, err := o.client.CreateImage(ctx, req)
@@ -144,7 +146,15 @@ func (o *openaiImplementation) GenerateImage(prompt string, opts ...LlmOptions) 
 		return nil, fmt.Errorf("no image generated")
 	}
 
-	// Note: This returns the URL of the image, not the image bytes
-	// To get actual image bytes, you would need to download from the URL
-	return []byte(resp.Data[0].URL), nil
+	imageData := strings.TrimSpace(resp.Data[0].B64JSON)
+	if imageData == "" {
+		return nil, fmt.Errorf("image payload missing in response")
+	}
+
+	bytes, err := base64.StdEncoding.DecodeString(imageData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode image data: %w", err)
+	}
+
+	return bytes, nil
 }
