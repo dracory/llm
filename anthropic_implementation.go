@@ -3,22 +3,145 @@ package llm
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"crypto/subtle"
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
+	"time"
 
 	"github.com/samber/lo"
 )
 
 // anthropicImplementation implements LlmInterface for Anthropic
 type anthropicImplementation struct {
-	apiKey      string
-	model       string
-	maxTokens   int
-	temperature float64
-	verbose     bool
+	apiKey          string
+	model           string
+	maxTokens       int
+	temperature     float64
+	verbose         bool
+	providerOptions map[string]any
+}
+
+func mergeProviderOptions(base map[string]any, override map[string]any) map[string]any {
+	if base == nil && override == nil {
+		return nil
+	}
+
+	merged := map[string]any{}
+
+	for k, v := range base {
+		merged[k] = v
+	}
+
+	for k, v := range override {
+		merged[k] = v
+	}
+
+	return merged
+}
+
+func buildAnthropicHTTPClient(providerOptions map[string]any) (*http.Client, error) {
+	tlsConfig := &tls.Config{
+		MinVersion: tls.VersionTLS12,
+	}
+
+	rootCAFile := valueFromProviderOrEnv(providerOptions, "anthropic_root_ca_file", "ANTHROPIC_ROOT_CA_FILE")
+	rootCAPEM := valueFromProviderOrEnv(providerOptions, "anthropic_root_ca_pem", "ANTHROPIC_ROOT_CA_PEM")
+	spkiHash := valueFromProviderOrEnv(providerOptions, "anthropic_spki_hash", "ANTHROPIC_EXPECTED_SPKI_HASH")
+
+	customRootCA := false
+	if rootCAFile != "" || rootCAPEM != "" {
+		rootPool, err := x509.SystemCertPool()
+		if err != nil || rootPool == nil {
+			rootPool = x509.NewCertPool()
+		}
+
+		if rootCAPEM != "" {
+			if ok := rootPool.AppendCertsFromPEM([]byte(rootCAPEM)); !ok {
+				return nil, fmt.Errorf("anthropic: invalid root CA PEM")
+			}
+			customRootCA = true
+		}
+
+		if rootCAFile != "" {
+			pemBytes, err := os.ReadFile(rootCAFile)
+			if err != nil {
+				return nil, fmt.Errorf("anthropic: unable to read root CA file %s: %w", rootCAFile, err)
+			}
+			if ok := rootPool.AppendCertsFromPEM(pemBytes); !ok {
+				return nil, fmt.Errorf("anthropic: invalid root CA file %s", rootCAFile)
+			}
+			customRootCA = true
+		}
+
+		if customRootCA {
+			tlsConfig.RootCAs = rootPool
+		}
+	}
+
+	spkiHash = strings.TrimSpace(spkiHash)
+	if strings.HasPrefix(spkiHash, "sha256/") {
+		spkiHash = strings.TrimPrefix(spkiHash, "sha256/")
+	}
+
+	if spkiHash != "" {
+		expectedPin, err := base64.StdEncoding.DecodeString(spkiHash)
+		if err != nil {
+			return nil, fmt.Errorf("anthropic: invalid SPKI hash: %w", err)
+		}
+
+		tlsConfig.VerifyConnection = func(state tls.ConnectionState) error {
+			if len(state.PeerCertificates) == 0 {
+				return fmt.Errorf("anthropic: no peer certificates for pinning")
+			}
+
+			leaf := state.PeerCertificates[0]
+			hash := sha256.Sum256(leaf.RawSubjectPublicKeyInfo)
+			if subtle.ConstantTimeCompare(hash[:], expectedPin) != 1 {
+				return fmt.Errorf("anthropic: certificate pin mismatch")
+			}
+
+			return nil
+		}
+	}
+
+	transport := &http.Transport{
+		Proxy:               http.ProxyFromEnvironment,
+		TLSClientConfig:     tlsConfig,
+		ForceAttemptHTTP2:   true,
+		TLSHandshakeTimeout: 10 * time.Second,
+	}
+
+	return &http.Client{
+		Timeout:   30 * time.Second,
+		Transport: transport,
+	}, nil
+}
+
+func valueFromProviderOrEnv(providerOptions map[string]any, key string, envKey string) string {
+	if providerOptions != nil {
+		if raw, ok := providerOptions[key]; ok {
+			switch v := raw.(type) {
+			case string:
+				if trimmed := strings.TrimSpace(v); trimmed != "" {
+					return trimmed
+				}
+			case []byte:
+				if trimmed := strings.TrimSpace(string(v)); trimmed != "" {
+					return trimmed
+				}
+			}
+		}
+	}
+
+	return strings.TrimSpace(os.Getenv(envKey))
 }
 
 // newAnthropicImplementation creates a new Anthropic provider implementation
@@ -29,17 +152,20 @@ func newAnthropicImplementation(options LlmOptions) (LlmInterface, error) {
 	}
 
 	return &anthropicImplementation{
-		apiKey:      options.ApiKey,
-		model:       model,
-		maxTokens:   options.MaxTokens,
-		temperature: options.Temperature,
-		verbose:     options.Verbose,
+		apiKey:          options.ApiKey,
+		model:           model,
+		maxTokens:       options.MaxTokens,
+		temperature:     options.Temperature,
+		verbose:         options.Verbose,
+		providerOptions: options.ProviderOptions,
 	}, nil
 }
 
 // Generate implements LlmInterface
 func (a *anthropicImplementation) Generate(systemPrompt string, userMessage string, opts ...LlmOptions) (string, error) {
 	options := lo.IfF(len(opts) > 0, func() LlmOptions { return opts[0] }).Else(LlmOptions{})
+
+	effectiveProviderOptions := mergeProviderOptions(a.providerOptions, options.ProviderOptions)
 
 	// Validate API key
 	if a.apiKey == "" {
@@ -106,7 +232,11 @@ func (a *anthropicImplementation) Generate(systemPrompt string, userMessage stri
 	req.Header.Set("anthropic-version", "2023-06-01")
 
 	// Send request
-	client := &http.Client{}
+	client, err := buildAnthropicHTTPClient(effectiveProviderOptions)
+	if err != nil {
+		return "", fmt.Errorf("failed to configure anthropic http client: %w", err)
+	}
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("failed to send request: %v", err)
