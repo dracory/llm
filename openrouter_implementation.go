@@ -1,9 +1,14 @@
 package llm
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"io"
+	"log"
+	"net/http"
 	"strings"
 
 	"github.com/samber/lo"
@@ -17,6 +22,9 @@ type openrouterImplementation struct {
 	maxTokens   int
 	temperature float64
 	verbose     bool
+	apiKey      string
+	baseURL     string
+	httpClient  openai.HTTPDoer
 }
 
 // newOpenRouterImplementation creates a new OpenRouter provider implementation
@@ -34,15 +42,22 @@ func newOpenRouterImplementation(options LlmOptions) (LlmInterface, error) {
 		model = "openrouter/auto"
 	}
 
+	baseURL := "https://openrouter.ai/api/v1"
+
 	cfg := openai.DefaultConfig(apiKey)
-	cfg.BaseURL = "https://openrouter.ai/api/v1"
+	cfg.BaseURL = baseURL
+
+	client := openai.NewClientWithConfig(cfg)
 
 	return &openrouterImplementation{
-		client:      openai.NewClientWithConfig(cfg),
+		client:      client,
 		model:       model,
 		maxTokens:   o.MaxTokens,
 		temperature: o.Temperature,
 		verbose:     o.Verbose,
+		apiKey:      apiKey,
+		baseURL:     baseURL,
+		httpClient:  cfg.HTTPClient,
 	}, nil
 }
 
@@ -68,6 +83,11 @@ func (o *openrouterImplementation) Generate(systemPrompt string, userMessage str
 		temperature = options.Temperature
 	}
 
+	verbose := o.verbose
+	if options.Verbose {
+		verbose = options.Verbose
+	}
+
 	// Configure response format based on output format
 	responseFormat := &openai.ChatCompletionResponseFormat{}
 	if options.OutputFormat == OutputFormatJSON {
@@ -76,7 +96,7 @@ func (o *openrouterImplementation) Generate(systemPrompt string, userMessage str
 		responseFormat.Type = openai.ChatCompletionResponseFormatTypeText
 	}
 
-	if o.verbose {
+	if verbose {
 		fmt.Printf("OpenRouter request: model=%s, maxTokens=%d, temperature=%f\n", model, maxTokens, temperature)
 		fmt.Printf("Response format: %v\n", responseFormat)
 		fmt.Printf("System prompt: %s\n", systemPrompt)
@@ -104,15 +124,19 @@ func (o *openrouterImplementation) Generate(systemPrompt string, userMessage str
 		return "", err
 	}
 
+	if verbose {
+		log.Println("OpenRouter response: ", resp)
+	}
+
 	if len(resp.Choices) == 0 {
-		if o.verbose {
+		if verbose {
 			fmt.Printf("no response from OpenRouter")
 		}
 		return "", fmt.Errorf("no response from OpenRouter")
 	}
 
 	response := resp.Choices[0].Message.Content
-	if o.verbose {
+	if verbose {
 		fmt.Printf("OpenRouter response: %s\n", response)
 	}
 	return strings.TrimSpace(response), nil
@@ -133,8 +157,9 @@ func (o *openrouterImplementation) GenerateJSON(systemPrompt string, userPrompt 
 }
 
 // GenerateImage implements LlmInterface
+// OpenRouter uses the chat completions endpoint with modalities parameter for image generation
 func (o *openrouterImplementation) GenerateImage(prompt string, opts ...LlmOptions) ([]byte, error) {
-	options := lo.IfF(len(opts) > 0, func() LlmOptions { return opts[0] }).Else(LlmOptions{})
+	options := lo.FirstOr(opts, LlmOptions{})
 
 	ctx := context.Background()
 
@@ -144,69 +169,136 @@ func (o *openrouterImplementation) GenerateImage(prompt string, opts ...LlmOptio
 		model = options.Model
 	}
 
-	// Default to DALL-E 3 if no model specified or using auto
-	if model == "" || model == "openrouter/auto" {
-		model = "google/gemini-2.5-flash-image"
+	verbose := o.verbose
+	if options.Verbose {
+		verbose = options.Verbose
 	}
 
-	// Default size
-	size := openai.CreateImageSize1024x1024
-	if s, ok := options.ProviderOptions["size"].(string); ok {
-		switch s {
-		case "256x256":
-			size = openai.CreateImageSize256x256
-		case "512x512":
-			size = openai.CreateImageSize512x512
-		case "1024x1024":
-			size = openai.CreateImageSize1024x1024
-		case "1792x1024":
-			size = openai.CreateImageSize1792x1024
-		case "1024x1792":
-			size = openai.CreateImageSize1024x1792
-		}
+	if verbose {
+		fmt.Printf("OpenRouter image generation request: model=%s, prompt=%s\n", model, prompt)
 	}
 
-	if o.verbose {
-		fmt.Printf("OpenRouter image request: model=%s, size=%s, prompt=%s\n", model, size, prompt)
+	// OpenRouter requires using chat completions with modalities for image generation
+	// We need to use a custom request structure that includes modalities
+	type imageConfig struct {
+		AspectRatio string `json:"aspect_ratio,omitempty"`
 	}
 
-	// Create image request
-	req := openai.ImageRequest{
-		Prompt:         prompt,
-		Model:          model,
-		Size:           size,
-		ResponseFormat: openai.CreateImageResponseFormatB64JSON,
-		N:              1,
+	type chatRequest struct {
+		Model       string                         `json:"model"`
+		Messages    []openai.ChatCompletionMessage `json:"messages"`
+		Modalities  []string                       `json:"modalities"`
+		ImageConfig *imageConfig                   `json:"image_config,omitempty"`
 	}
 
-	// Generate image
-	resp, err := o.client.CreateImage(ctx, req)
+	// Create the request with modalities
+	reqBody := chatRequest{
+		Model: model,
+		Messages: []openai.ChatCompletionMessage{
+			{
+				Role:    openai.ChatMessageRoleUser,
+				Content: prompt,
+			},
+		},
+		Modalities: []string{"image", "text"},
+		ImageConfig: &imageConfig{
+			AspectRatio: "1:1", // Default to square images
+		},
+	}
+
+	// We need to make a custom HTTP request since the standard client doesn't support modalities
+	reqJSON, err := json.Marshal(reqBody)
 	if err != nil {
-		if o.verbose {
-			fmt.Printf("OpenRouter image generation error: %v\n", err)
-		}
-		return nil, err
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	if len(resp.Data) == 0 {
-		if o.verbose {
-			fmt.Printf("no image data in response")
-		}
-		return nil, fmt.Errorf("no image generated")
-	}
-
-	if resp.Data[0].B64JSON == "" {
-		return nil, fmt.Errorf("no base64 data in response")
-	}
-
-	// Decode base64 to bytes
-	data, err := base64.StdEncoding.DecodeString(resp.Data[0].B64JSON)
+	req, err := http.NewRequestWithContext(ctx, "POST", o.baseURL+"/chat/completions", bytes.NewReader(reqJSON))
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode base64 image data: %v", err)
+		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	if o.verbose {
-		fmt.Printf("Generated image of size %d bytes\n", len(data))
+	req.Header.Set("Authorization", "Bearer "+o.apiKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	httpClient := &http.Client{}
+	if o.httpClient != nil {
+		if client, ok := o.httpClient.(*http.Client); ok {
+			httpClient = client
+		}
 	}
-	return data, nil
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("image generation failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	// Parse the response to extract the image
+	type imageURL struct {
+		URL string `json:"url"`
+	}
+
+	type imageData struct {
+		Type     string   `json:"type"`
+		ImageURL imageURL `json:"image_url"`
+	}
+
+	type message struct {
+		Role    string      `json:"role"`
+		Content string      `json:"content"`
+		Images  []imageData `json:"images"`
+	}
+
+	type choice struct {
+		Message message `json:"message"`
+	}
+
+	type chatResponse struct {
+		Choices []choice `json:"choices"`
+	}
+
+	var chatResp chatResponse
+	if err := json.Unmarshal(body, &chatResp); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	if len(chatResp.Choices) == 0 {
+		return nil, fmt.Errorf("no choices in response")
+	}
+
+	if len(chatResp.Choices[0].Message.Images) == 0 {
+		return nil, fmt.Errorf("no images in response")
+	}
+
+	// Extract the base64 image data from the data URL
+	dataURL := chatResp.Choices[0].Message.Images[0].ImageURL.URL
+	if !strings.HasPrefix(dataURL, "data:image/") {
+		return nil, fmt.Errorf("unexpected image URL format: %s", dataURL)
+	}
+
+	// Extract base64 data from data URL (format: data:image/png;base64,...)
+	parts := strings.SplitN(dataURL, ",", 2)
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("invalid data URL format")
+	}
+
+	imageBytes, err := base64.StdEncoding.DecodeString(parts[1])
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode base64 image: %w", err)
+	}
+
+	if verbose {
+		fmt.Printf("Successfully generated image: %d bytes\n", len(imageBytes))
+	}
+
+	return imageBytes, nil
 }
