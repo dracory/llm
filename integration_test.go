@@ -14,10 +14,37 @@ func skipIfNoAPIKey(t *testing.T, envVar string) {
 }
 
 // skipIfCIEnvironment skips the test if running in a CI environment
+
 func skipIfCIEnvironment(t *testing.T) {
 	if os.Getenv("CI") != "" || os.Getenv("GITHUB_ACTIONS") != "" {
 		t.Skip("Skipping integration test in CI environment")
 	}
+}
+
+func vertexCredentialsAvailable() bool {
+	if strings.TrimSpace(os.Getenv("VERTEXAI_CREDENTIALS_JSON")) != "" {
+		return true
+	}
+
+	credentialsFileEnv := strings.TrimSpace(os.Getenv("VERTEXAI_CREDENTIALS_FILE"))
+	if credentialsFileEnv != "" {
+		if _, err := os.Stat(credentialsFileEnv); err == nil {
+			return true
+		}
+	}
+
+	adcFile := strings.TrimSpace(os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"))
+	if adcFile != "" {
+		if _, err := os.Stat(adcFile); err == nil {
+			return true
+		}
+	}
+
+	if _, err := os.Stat("vertexapicredentials.json"); err == nil {
+		return true
+	}
+
+	return false
 }
 
 // TestOpenAIIntegration tests the OpenAI implementation with real API calls
@@ -107,9 +134,9 @@ func TestGeminiIntegration(t *testing.T) {
 // TestVertexIntegration tests the Vertex implementation with real API calls
 func TestVertexIntegration(t *testing.T) {
 	skipIfCIEnvironment(t)
-	// Skip if credentials file doesn't exist
-	if _, err := os.Stat("vertexapicredentials.json"); os.IsNotExist(err) {
-		t.Skip("Skipping Vertex test because vertexapicredentials.json doesn't exist")
+
+	if !vertexCredentialsAvailable() {
+		t.Skip("Skipping Vertex test because Vertex credentials are not configured")
 	}
 
 	// Create Vertex LLM

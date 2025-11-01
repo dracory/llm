@@ -54,12 +54,12 @@ func (c *vertexLlmImpl) Generate(systemPrompt string, userMessage string, opts .
 	}
 
 	ctx := context.Background()
-	vertexCredentialsJSON := `vertexapicredentials.json` // best move to vault
-	vertxCredentialsContent, err := os.ReadFile(vertexCredentialsJSON)
+	clientOptions, err := buildVertexClientOptions(options)
 	if err != nil {
 		return "", err
 	}
-	client, err := genai.NewClient(ctx, options.ProjectID, options.Region, option.WithCredentialsJSON([]byte(vertxCredentialsContent)))
+
+	client, err := genai.NewClient(ctx, options.ProjectID, options.Region, clientOptions...)
 	if err != nil {
 		return "", err
 	}
@@ -171,8 +171,22 @@ func (l *vertexLlmImpl) GenerateJSON(systemPrompt string, userPrompt string, opt
 func (l *vertexLlmImpl) GenerateImage(prompt string, opts ...LlmOptions) ([]byte, error) {
 	options := lo.IfF(len(opts) > 0, func() LlmOptions { return opts[0] }).Else(LlmOptions{})
 	options = mergeOptions(l.options, options)
+
+	if options.ProjectID == "" {
+		return nil, errors.New("project id is required")
+	}
+
+	if options.Region == "" {
+		return nil, errors.New("region is required")
+	}
+
 	ctx := context.Background()
-	client, err := genai.NewClient(ctx, l.options.ProjectID, l.options.Region)
+	clientOptions, err := buildVertexClientOptions(options)
+	if err != nil {
+		return nil, err
+	}
+
+	client, err := genai.NewClient(ctx, options.ProjectID, options.Region, clientOptions...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create genai client: %w", err)
 	}
@@ -263,4 +277,58 @@ func findVertexModelName(modelName string) string {
 
 	// return GEMINI_MODEL_2_0_FLASH_LITE
 	return GEMINI_MODEL_2_5_FLASH
+}
+
+func buildVertexClientOptions(options LlmOptions) ([]option.ClientOption, error) {
+	if options.ProviderOptions != nil {
+		if raw, ok := options.ProviderOptions["credentials_json"]; ok {
+			switch value := raw.(type) {
+			case string:
+				if trimmed := strings.TrimSpace(value); trimmed != "" {
+					return []option.ClientOption{option.WithCredentialsJSON([]byte(trimmed))}, nil
+				}
+			case []byte:
+				if len(value) > 0 {
+					return []option.ClientOption{option.WithCredentialsJSON(value)}, nil
+				}
+			default:
+				return nil, fmt.Errorf("credentials_json provider option must be string or []byte")
+			}
+		}
+
+		if raw, ok := options.ProviderOptions["credentials_file"]; ok {
+			switch value := raw.(type) {
+			case string:
+				trimmed := strings.TrimSpace(value)
+				if trimmed != "" {
+					if _, err := os.Stat(trimmed); err != nil {
+						return nil, fmt.Errorf("unable to access credentials file %s: %w", trimmed, err)
+					}
+					return []option.ClientOption{option.WithCredentialsFile(trimmed)}, nil
+				}
+			default:
+				return nil, fmt.Errorf("credentials_file provider option must be string")
+			}
+		}
+	}
+
+	if jsonEnv := strings.TrimSpace(os.Getenv("VERTEXAI_CREDENTIALS_JSON")); jsonEnv != "" {
+		return []option.ClientOption{option.WithCredentialsJSON([]byte(jsonEnv))}, nil
+	}
+
+	if fileEnv := strings.TrimSpace(os.Getenv("VERTEXAI_CREDENTIALS_FILE")); fileEnv != "" {
+		if _, err := os.Stat(fileEnv); err != nil {
+			return nil, fmt.Errorf("unable to access credentials file %s: %w", fileEnv, err)
+		}
+		return []option.ClientOption{option.WithCredentialsFile(fileEnv)}, nil
+	}
+
+	if adcFile := strings.TrimSpace(os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")); adcFile != "" {
+		if _, err := os.Stat(adcFile); err != nil {
+			return nil, fmt.Errorf("unable to access credentials file %s: %w", adcFile, err)
+		}
+		return []option.ClientOption{option.WithCredentialsFile(adcFile)}, nil
+	}
+
+	return nil, nil
 }
