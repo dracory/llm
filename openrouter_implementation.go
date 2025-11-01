@@ -2,6 +2,7 @@ package llm
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"strings"
 
@@ -133,6 +134,79 @@ func (o *openrouterImplementation) GenerateJSON(systemPrompt string, userPrompt 
 
 // GenerateImage implements LlmInterface
 func (o *openrouterImplementation) GenerateImage(prompt string, opts ...LlmOptions) ([]byte, error) {
-	_ = lo.IfF(len(opts) > 0, func() LlmOptions { return opts[0] }).Else(LlmOptions{})
-	return nil, fmt.Errorf("image generation is not supported via OpenRouter in this implementation")
+	options := lo.IfF(len(opts) > 0, func() LlmOptions { return opts[0] }).Else(LlmOptions{})
+
+	ctx := context.Background()
+
+	// Apply options if provided
+	model := o.model
+	if options.Model != "" {
+		model = options.Model
+	}
+
+	// Default to DALL-E 3 if no model specified or using auto
+	if model == "" || model == "openrouter/auto" {
+		model = "google/gemini-2.5-flash-image"
+	}
+
+	// Default size
+	size := openai.CreateImageSize1024x1024
+	if s, ok := options.ProviderOptions["size"].(string); ok {
+		switch s {
+		case "256x256":
+			size = openai.CreateImageSize256x256
+		case "512x512":
+			size = openai.CreateImageSize512x512
+		case "1024x1024":
+			size = openai.CreateImageSize1024x1024
+		case "1792x1024":
+			size = openai.CreateImageSize1792x1024
+		case "1024x1792":
+			size = openai.CreateImageSize1024x1792
+		}
+	}
+
+	if o.verbose {
+		fmt.Printf("OpenRouter image request: model=%s, size=%s, prompt=%s\n", model, size, prompt)
+	}
+
+	// Create image request
+	req := openai.ImageRequest{
+		Prompt:         prompt,
+		Model:          model,
+		Size:           size,
+		ResponseFormat: openai.CreateImageResponseFormatB64JSON,
+		N:              1,
+	}
+
+	// Generate image
+	resp, err := o.client.CreateImage(ctx, req)
+	if err != nil {
+		if o.verbose {
+			fmt.Printf("OpenRouter image generation error: %v\n", err)
+		}
+		return nil, err
+	}
+
+	if len(resp.Data) == 0 {
+		if o.verbose {
+			fmt.Printf("no image data in response")
+		}
+		return nil, fmt.Errorf("no image generated")
+	}
+
+	if resp.Data[0].B64JSON == "" {
+		return nil, fmt.Errorf("no base64 data in response")
+	}
+
+	// Decode base64 to bytes
+	data, err := base64.StdEncoding.DecodeString(resp.Data[0].B64JSON)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode base64 image data: %v", err)
+	}
+
+	if o.verbose {
+		fmt.Printf("Generated image of size %d bytes\n", len(data))
+	}
+	return data, nil
 }

@@ -59,3 +59,19 @@ const OPENROUTER_MODEL_QWEN_3_30B_A3B = "qwen/qwen3-30b-a3b"
 // DeepSeek DeepSeek V3.1
 // Input $0.20/M Output $0.80/M Context 163,840
 const OPENROUTER_MODEL_DEEPSEEK_V3_1 = "deepseek/deepseek-chat-v3.1"
+
+// ===========================================================================//
+// Image Models
+// ===========================================================================//
+
+// Google Gemini 2.5 Flash Image
+// Input $0.30/M Output $2.50/M Context 1,048,576
+const OPENROUTER_MODEL_GEMINI_2_5_FLASH_IMAGE = "google/gemini-2.5-flash-image"
+
+// OpenAI GPT-5 Image Mini
+// Input $2.50/M Output $2/M Context 1,048,576
+const OPENROUTER_MODEL_GPT_5_IMAGE_MINI = "openai/gpt-5-image-mini"
+
+// OpenAI GPT-5 Image
+// Input $10.00/M Output $10/M Context 1,048,576
+const OPENROUTER_MODEL_GPT_5_IMAGE = "openai/gpt-5-image"
