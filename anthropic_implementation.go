@@ -43,7 +43,7 @@ func (a *anthropicImplementation) Generate(systemPrompt string, userMessage stri
 
 	// Validate API key
 	if a.apiKey == "" {
-		return "", fmt.Errorf("Anthropic API key not provided")
+		return "", fmt.Errorf("anthropic api key not provided")
 	}
 
 	ctx := context.Background()

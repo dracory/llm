@@ -28,24 +28,24 @@ func createProvider(provider Provider, outputFormat OutputFormat, options LlmOpt
 	options.OutputFormat = outputFormat
 
 	if provider == ProviderGemini && options.ApiKey == "" {
-		return nil, fmt.Errorf("Google Gemini API key is required")
+		return nil, fmt.Errorf("google gemini api key is required")
 	}
 
 	if provider == ProviderVertex && options.ApiKey == "" {
-		return nil, fmt.Errorf("Vertex AI project ID is required")
+		return nil, fmt.Errorf("vertexai project id is required")
 	}
 
 	if provider == ProviderAnthropic && options.ApiKey == "" {
-		return nil, fmt.Errorf("Anthropic API key is required")
+		return nil, fmt.Errorf("anthropic api key is required")
 	}
 
 	if provider == ProviderOpenRouter && options.ApiKey == "" {
-		return nil, fmt.Errorf("OpenRouter API key is required")
+		return nil, fmt.Errorf("openrouter api key is required")
 	}
 
 	// Skip model check for mock provider
 	if provider != ProviderMock && options.Model == "" {
-		return nil, fmt.Errorf("Model is required")
+		return nil, fmt.Errorf("model is required")
 	}
 
 	if options.MaxTokens == 0 {
@@ -60,7 +60,7 @@ func createProvider(provider Provider, outputFormat OutputFormat, options LlmOpt
 	}
 
 	if options.ProjectID == "" && provider == ProviderVertex {
-		return nil, fmt.Errorf("Vertex AI project ID is required")
+		return nil, fmt.Errorf("vertexai project id is required")
 	}
 
 	if options.Region == "" && provider == ProviderVertex {

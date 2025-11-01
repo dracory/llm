@@ -18,7 +18,7 @@ type geminiImplementation struct {
 // newGeminiImplementation creates a new Gemini provider implementation
 func newGeminiImplementation(options LlmOptions) (LlmInterface, error) {
 	if options.ApiKey == "" {
-		return nil, fmt.Errorf("Gemini API key not provided")
+		return nil, fmt.Errorf("gemini API key not provided")
 	}
 
 	// Create a new client with the API key
@@ -52,7 +52,7 @@ func (g *geminiImplementation) Generate(systemPrompt string, userMessage string,
 	options := lo.IfF(len(opts) > 0, func() LlmOptions { return opts[0] }).Else(LlmOptions{})
 
 	if g.client == nil {
-		return "", fmt.Errorf("Gemini client not initialized")
+		return "", fmt.Errorf("gemini client not initialized")
 	}
 
 	// Prepare the prompt with system and user message
@@ -84,7 +84,7 @@ func (g *geminiImplementation) Generate(systemPrompt string, userMessage string,
 			MaxOutputTokens: int32(options.MaxTokens),
 		}
 		if options.Temperature > 0 {
-			genConfig.Temperature = genai.Ptr[float32](float32(options.Temperature))
+			genConfig.Temperature = genai.Ptr(float32(options.Temperature))
 		}
 	}
 
@@ -104,7 +104,7 @@ func (g *geminiImplementation) Generate(systemPrompt string, userMessage string,
 	}
 
 	if len(resp.Candidates) == 0 || len(resp.Candidates[0].Content.Parts) == 0 {
-		return "", fmt.Errorf("no response from Gemini")
+		return "", fmt.Errorf("no response from gemini")
 	}
 
 	// Get the text from the first candidate
@@ -116,7 +116,7 @@ func (g *geminiImplementation) Generate(systemPrompt string, userMessage string,
 	}
 
 	if result == "" {
-		return "", fmt.Errorf("empty response from Gemini")
+		return "", fmt.Errorf("empty response from gemini")
 	}
 
 	return result, nil
@@ -143,12 +143,4 @@ func (g *geminiImplementation) GenerateImage(prompt string, opts ...LlmOptions) 
 	// Image generation is not directly supported in the current version of the Gemini API
 	// You would need to use a different API like DALL-E or Stable Diffusion for image generation
 	return nil, fmt.Errorf("image generation is not supported in this implementation")
-}
-
-func int32Ptr(i int) *int32 {
-	i32 := int32(i)
-	return &i32
-}
-func float32Ptr(f float32) *float32 {
-	return &f
 }
