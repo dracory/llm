@@ -181,7 +181,15 @@ The `LlmOptions` struct provides configuration options for LLM requests:
 ### Vertex AI
 - Supports Gemini models on Google Cloud
 - Requires GCP project ID and region
-- Credentials stored in `vertexapicredentials.json`
+- Credentials can be supplied in several ways:
+  1. Set `LlmOptions.ProviderOptions["credentials_json"]` with the raw service-account JSON string (or `[]byte`).
+  2. Point `LlmOptions.ProviderOptions["credentials_file"]` to the path of a service-account JSON file.
+  3. Configure environment variables:
+     - `VERTEXAI_CREDENTIALS_JSON` containing the JSON credentials.
+     - `VERTEXAI_CREDENTIALS_FILE` with a path to the credentials file.
+     - `GOOGLE_APPLICATION_CREDENTIALS` (standard ADC path) as a fallback.
+  4. When none of the above are provided, Application Default Credentials will be used.
+- The legacy `vertexapicredentials.json` file is no longer required; use the options above instead.
 
 ### Anthropic
 - Supports Claude models
@@ -255,3 +263,4 @@ The mock will return the first non-empty MockResponse it finds, checking in this
 
 - [llm](https://github.com/sashabaranov/go-openai)
 - [gollm](https://github.com/teilomillet/gollm)
+- [fantasy](https://github.com/charmbracelet/fantasy)
