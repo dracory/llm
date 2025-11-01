@@ -114,7 +114,13 @@ func (a *anthropicImplementation) Generate(systemPrompt string, userMessage stri
 	if resp == nil {
 		return "", fmt.Errorf("failed to send request: received nil response")
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if cerr := resp.Body.Close(); cerr != nil {
+			if a.verbose {
+				fmt.Printf("failed to close response body: %v\n", cerr)
+			}
+		}
+	}()
 
 	// Read response body
 	body, err := io.ReadAll(resp.Body)

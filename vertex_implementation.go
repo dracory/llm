@@ -63,7 +63,11 @@ func (c *vertexLlmImpl) Generate(systemPrompt string, userMessage string, opts .
 	if err != nil {
 		return "", err
 	}
-	defer client.Close()
+	defer func() {
+		if cerr := client.Close(); cerr != nil && options.Verbose {
+			fmt.Printf("failed to close vertex client: %v\n", cerr)
+		}
+	}()
 
 	systemMessage := "Hi. I'll explain how you should behave:\n" + systemPrompt
 
@@ -75,7 +79,9 @@ func (c *vertexLlmImpl) Generate(systemPrompt string, userMessage string, opts .
 	}
 
 	if options.Verbose {
-		cfmt.Warningln("Final prompt:", final)
+		if _, err := cfmt.Warningln("Final prompt:", final); err != nil {
+			fmt.Printf("failed to log final prompt: %v\n", err)
+		}
 	}
 
 	// For text-only input, use the gemini-pro model
@@ -169,10 +175,20 @@ func (l *vertexLlmImpl) GenerateImage(prompt string, opts ...LlmOptions) ([]byte
 	if err != nil {
 		return nil, fmt.Errorf("failed to create genai client: %w", err)
 	}
-	defer client.Close()
+	defer func() {
+		if cerr := client.Close(); cerr != nil && options.Verbose {
+			fmt.Printf("failed to close vertex image client: %v\n", cerr)
+		}
+	}()
 
-	cfmt.Warningln("Using experimental image generation model")
-	cfmt.Warningln("Prompt:", prompt)
+	if options.Verbose {
+		if _, err := cfmt.Warningln("Using experimental image generation model"); err != nil {
+			fmt.Printf("failed to log experimental image generation notice: %v\n", err)
+		}
+		if _, err := cfmt.Warningln("Prompt:", prompt); err != nil {
+			fmt.Printf("failed to log prompt: %v\n", err)
+		}
+	}
 
 	model := client.GenerativeModel(GEMINI_MODEL_2_0_FLASH_EXP_IMAGE_GENERATION)
 
