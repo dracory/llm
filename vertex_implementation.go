@@ -103,15 +103,16 @@ func (c *vertexLlmImpl) Generate(systemPrompt string, userMessage string, opts .
 		TopK:            &topK,
 	}
 
-	if options.OutputFormat == OutputFormatJSON {
+	switch options.OutputFormat {
+	case OutputFormatJSON:
 		generationConfig.ResponseMIMEType = "application/json"
-	} else if options.OutputFormat == OutputFormatXML {
+	case OutputFormatXML:
 		generationConfig.ResponseMIMEType = "application/xml"
-	} else if options.OutputFormat == OutputFormatYAML {
+	case OutputFormatYAML:
 		generationConfig.ResponseMIMEType = "application/yaml"
-	} else if options.OutputFormat == OutputFormatEnum {
+	case OutputFormatEnum:
 		generationConfig.ResponseMIMEType = "text/x.enum"
-	} else {
+	default:
 		generationConfig.ResponseMIMEType = "text/plain"
 	}
 	model.GenerationConfig = *generationConfig
@@ -207,12 +208,13 @@ func (l *vertexLlmImpl) GenerateImage(prompt string, opts ...LlmOptions) ([]byte
 		TopP:            &topP,
 		TopK:            &topK,
 	}
-	if options.OutputFormat == OutputFormatImagePNG {
-		generationConfig.ResponseMIMEType = "image/png"
-	} else if options.OutputFormat == OutputFormatImageJPG {
+	switch options.OutputFormat {
+	case OutputFormatImagePNG:
+		generationConfig.ResponseMIMEType = string(OutputFormatImagePNG)
+	case OutputFormatImageJPG:
 		generationConfig.ResponseMIMEType = "image/jpg"
-	} else {
-		generationConfig.ResponseMIMEType = "image/png"
+	default:
+		generationConfig.ResponseMIMEType = string(OutputFormatImagePNG)
 	}
 	model.GenerationConfig = *generationConfig
 	resp, err := model.GenerateContent(ctx,

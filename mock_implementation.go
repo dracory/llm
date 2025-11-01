@@ -101,7 +101,7 @@ func (c *mockImplementation) GenerateJSON(systemPrompt string, userPrompt string
 }
 
 func (c *mockImplementation) GenerateImage(prompt string, opts ...LlmOptions) ([]byte, error) {
-	options := lo.IfF(len(opts) > 0, func() LlmOptions { return opts[0] }).Else(LlmOptions{})
-	options.OutputFormat = OutputFormatImagePNG
+	//options := lo.IfF(len(opts) > 0, func() LlmOptions { return opts[0] }).Else(LlmOptions{})
+	//options.OutputFormat = OutputFormatImagePNG
 	return nil, nil
 }
