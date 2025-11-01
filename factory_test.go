@@ -174,6 +174,9 @@ func TestCustomProvider(t *testing.T) {
 	if err != nil {
 		t.Errorf("Failed to create LLM with custom provider: %v", err)
 	}
+	if llm == nil {
+		t.Fatalf("Failed to create LLM with custom provider: got nil instance")
+	}
 
 	// Test successful generation
 	response, err := llm.Generate("test", "hello world")
@@ -215,12 +218,18 @@ func TestOptionsMerging(t *testing.T) {
 	})
 
 	// Create LLM with base options
-	llm, _ := NewLLM(LlmOptions{
+	llm, err := NewLLM(LlmOptions{
 		Provider:    customProvider,
 		MaxTokens:   500,             // This should be overridden
 		Temperature: 0.5,             // This should be used
 		Model:       "default-model", // This should be overridden
 	})
+	if err != nil {
+		t.Fatalf("Failed to create LLM for options test: %v", err)
+	}
+	if llm == nil {
+		t.Fatalf("Failed to create LLM for options test: got nil instance")
+	}
 
 	// Call with overriding options
 	response, err := llm.Generate("test", "test", LlmOptions{

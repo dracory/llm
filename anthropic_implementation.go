@@ -111,6 +111,9 @@ func (a *anthropicImplementation) Generate(systemPrompt string, userMessage stri
 	if err != nil {
 		return "", fmt.Errorf("failed to send request: %v", err)
 	}
+	if resp == nil {
+		return "", fmt.Errorf("failed to send request: received nil response")
+	}
 	defer resp.Body.Close()
 
 	// Read response body
