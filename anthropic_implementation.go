@@ -9,6 +9,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -315,6 +316,11 @@ func (a *anthropicImplementation) GenerateImage(prompt string, opts ...LlmOption
 	}
 
 	return nil, fmt.Errorf("image generation not supported by Anthropic")
+}
+
+// GenerateEmbedding implements LlmInterface
+func (a *anthropicImplementation) GenerateEmbedding(text string) ([]float32, error) {
+	return nil, errors.New("not supported. change to openrouter")
 }
 
 func init() {

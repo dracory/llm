@@ -75,3 +75,35 @@ const OPENROUTER_MODEL_GPT_5_IMAGE_MINI = "openai/gpt-5-image-mini"
 // OpenAI GPT-5 Image
 // Input $10.00/M Output $10/M Context 1,048,576
 const OPENROUTER_MODEL_GPT_5_IMAGE = "openai/gpt-5-image"
+
+// ===========================================================================//
+// Embedding Models
+// ===========================================================================//
+
+// Qwen Qwen3 Embedding 0.6B
+// Input $0.01/M Output $0.00/M
+const OPENROUTER_MODEL_QWEN_3_EMBEDDING_0_6B = "qwen/qwen3-embedding-0.6b"
+
+// Mistral Mistral Embedding 2312
+// Input $0.10/M Output $0.00/M
+const OPENROUTER_MODEL_MISTRAL_EMBED_2312 = "mistralai/mistral-embed-2312"
+
+// Google Gemini Embedding 001
+// Input $0.15/M Output $0.00/M
+const OPENROUTER_MODEL_GEMINI_EMBED_001 = "google/gemini-embedding-001"
+
+// OpenAI Text Embedding Ada 002
+// Input $0.10/M Output $0.00/M
+const OPENROUTER_MODEL_TEXT_EMBEDDING_ADA_002 = "openai/text-embedding-ada-002"
+
+// Mistral Codestral Embedding 2505
+// Input $0.15/M Output $0.00/M
+const OPENROUTER_MODEL_CODESTRAL_EMBED_2505 = "mistralai/codestral-embed-2505"
+
+// OpenAI Text Embedding 3 Large
+// Input $0.13/M Output $0.00/M
+const OPENROUTER_MODEL_TEXT_EMBEDDING_3_LARGE = "openai/text-embedding-3-large"
+
+// OpenAI Text Embedding 3 Small
+// Input $0.02/M Output $0.00/M
+const OPENROUTER_MODEL_TEXT_EMBEDDING_3_SMALL = "openai/text-embedding-3-small"

@@ -1,8 +1,12 @@
 package llm
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 
 	"github.com/samber/lo"
 	"google.golang.org/genai"
@@ -13,6 +17,7 @@ type geminiImplementation struct {
 	client  *genai.Client
 	model   string
 	verbose bool
+	apiKey  string
 }
 
 // newGeminiImplementation creates a new Gemini provider implementation
@@ -44,6 +49,7 @@ func newGeminiImplementation(options LlmOptions) (LlmInterface, error) {
 		client:  client,
 		model:   modelName,
 		verbose: options.Verbose,
+		apiKey:  options.ApiKey,
 	}, nil
 }
 
@@ -143,4 +149,65 @@ func (g *geminiImplementation) GenerateImage(prompt string, opts ...LlmOptions) 
 	// Image generation is not directly supported in the current version of the Gemini API
 	// You would need to use a different API like DALL-E or Stable Diffusion for image generation
 	return nil, fmt.Errorf("image generation is not supported in this implementation")
+}
+
+// GenerateEmbedding generates embeddings for the given text
+func (g *geminiImplementation) GenerateEmbedding(text string) ([]float32, error) {
+	ctx := context.Background()
+	
+	// Gemini requires a custom HTTP request for embeddings
+	reqBody := map[string]interface{}{
+		"model": "models/embedding-001",
+		"text": text,
+	}
+	
+	reqJSON, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+	
+	req, err := http.NewRequestWithContext(ctx, "POST", "https://generativelanguage.googleapis.com/v1beta/models/embedding-001:embedContent", bytes.NewReader(reqJSON))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-goog-api-key", g.apiKey)
+	
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+	
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+	
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("embedding request failed with status %d: %s", resp.StatusCode, string(body))
+	}
+	
+	var result struct {
+		Embedding struct {
+			Value []float64 `json:"value"`
+		} `json:"embedding"`
+	}
+	
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+	
+	if len(result.Embedding.Value) == 0 {
+		return nil, fmt.Errorf("no embeddings generated")
+	}
+	
+	// Convert float64 to float32
+	embeddings := make([]float32, len(result.Embedding.Value))
+	for i, v := range result.Embedding.Value {
+		embeddings[i] = float32(v)
+	}
+	
+	return embeddings, nil
 }

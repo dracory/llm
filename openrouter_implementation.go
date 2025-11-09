@@ -302,3 +302,27 @@ func (o *openrouterImplementation) GenerateImage(prompt string, opts ...LlmOptio
 
 	return imageBytes, nil
 }
+
+func (o *openrouterImplementation) GenerateEmbedding(text string) ([]float32, error) {
+	ctx := context.Background()
+	
+	// OpenRouter uses OpenAI-compatible embeddings endpoint
+	req := openai.EmbeddingRequest{
+		Input: []string{text},
+		Model: openai.AdaEmbeddingV2,
+	}
+	
+	resp, err := o.client.CreateEmbeddings(ctx, req)
+	if err != nil {
+		if o.verbose {
+			fmt.Printf("OpenRouter embedding generation error: %v\n", err)
+		}
+		return nil, err
+	}
+	
+	if len(resp.Data) == 0 {
+		return nil, fmt.Errorf("no embeddings generated")
+	}
+	
+	return resp.Data[0].Embedding, nil
+}

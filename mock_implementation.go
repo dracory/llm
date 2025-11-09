@@ -105,3 +105,7 @@ func (c *mockImplementation) GenerateImage(prompt string, opts ...LlmOptions) ([
 	//options.OutputFormat = OutputFormatImagePNG
 	return nil, nil
 }
+
+func (m *mockImplementation) GenerateEmbedding(text string) ([]float32, error) {
+	return []float32{0.1, 0.2, 0.3}, nil
+}

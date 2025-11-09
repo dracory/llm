@@ -251,6 +251,56 @@ func (l *vertexLlmImpl) GenerateImage(prompt string, opts ...LlmOptions) ([]byte
 	return nil, errors.New("no image found in response")
 }
 
+func (l *vertexLlmImpl) GenerateEmbedding(text string) ([]float32, error) {
+	return nil, errors.New("not supported. change to openrouter")
+	// options := l.options
+
+	// if options.ProjectID == "" {
+	// 	return nil, errors.New("project id is required")
+	// }
+
+	// if options.Region == "" {
+	// 	return nil, errors.New("region is required")
+	// }
+
+	// ctx := context.Background()
+	// clientOptions, err := buildVertexClientOptions(options)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// client, err := genai.NewClient(ctx, options.ProjectID, options.Region, clientOptions...)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to create genai client: %w", err)
+	// }
+	// defer func() {
+	// 	if cerr := client.Close(); cerr != nil && options.Verbose {
+	// 		fmt.Printf("failed to close vertex client: %v\n", cerr)
+	// 	}
+	// }()
+
+	// // Use text embedding model
+	// model := client.GenerativeModel("models/embedding-001")
+
+	// // Generate embeddings
+	// resp, err := model.EmbedContent(ctx, genai.Text(text))
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to generate embeddings: %w", err)
+	// }
+
+	// if len(resp.Embedding.Values) == 0 {
+	// 	return nil, fmt.Errorf("no embeddings generated")
+	// }
+
+	// // Convert float64 to float32
+	// embeddings := make([]float32, len(resp.Embedding.Values))
+	// for i, v := range resp.Embedding.Values {
+	// 	embeddings[i] = float32(v)
+	// }
+
+	// return embeddings, nil
+}
+
 // findVertexModelName returns the name of the gemini model to use
 // based on the model name.
 //

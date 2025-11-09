@@ -153,6 +153,10 @@ func (c *CustomTestLLM) GenerateImage(prompt string, opts ...LlmOptions) ([]byte
 	return []byte("test image data"), nil
 }
 
+func (c *CustomTestLLM) GenerateEmbedding(text string) ([]float32, error) {
+	return nil, errors.New("not supported. change to openrouter")
+}
+
 // TestCustomProvider tests adding and using a custom provider
 func TestCustomProvider(t *testing.T) {
 	// Register a custom provider

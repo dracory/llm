@@ -15,6 +15,9 @@ type LlmInterface interface {
 
 	// DEPRECATED: Generate generates a response from the LLM based on the given prompt and options
 	Generate(systemPrompt string, userMessage string, options ...LlmOptions) (string, error)
+
+	// GenerateEmbedding generates embeddings for the given text
+	GenerateEmbedding(text string) ([]float32, error)
 }
 
 type LlmOptions struct {

@@ -128,9 +128,9 @@ func (o *openaiImplementation) GenerateImage(prompt string, opts ...LlmOptions) 
 
 	// Use DALL-E model for image generation
 	req := openai.ImageRequest{
-		Prompt: prompt,
-		Size:   openai.CreateImageSize1024x1024,
-		N:      1,
+		Prompt:         prompt,
+		Size:           openai.CreateImageSize1024x1024,
+		N:              1,
 		ResponseFormat: openai.CreateImageResponseFormatB64JSON,
 	}
 
@@ -157,4 +157,28 @@ func (o *openaiImplementation) GenerateImage(prompt string, opts ...LlmOptions) 
 	}
 
 	return bytes, nil
+}
+
+// GenerateEmbedding implements LlmInterface
+func (o *openaiImplementation) GenerateEmbedding(text string) ([]float32, error) {
+	ctx := context.Background()
+
+	req := openai.EmbeddingRequest{
+		Input: []string{text},
+		Model: OPENROUTER_MODEL_QWEN_3_EMBEDDING_0_6B,
+	}
+
+	resp, err := o.client.CreateEmbeddings(ctx, req)
+	if err != nil {
+		if o.verbose {
+			fmt.Printf("OpenAI embedding generation error: %v\n", err)
+		}
+		return nil, err
+	}
+
+	if len(resp.Data) == 0 {
+		return nil, fmt.Errorf("no embeddings generated")
+	}
+
+	return resp.Data[0].Embedding, nil
 }
