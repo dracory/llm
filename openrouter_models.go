@@ -20,6 +20,10 @@ const OPENROUTER_MODEL_GPT_4_1_NANO = "openai/gpt-4.1-nano"
 // Input $0.05/M Output $0.40/M Context 400,000
 const OPENROUTER_MODEL_GPT_5_NANO = "openai/gpt-5-nano"
 
+// OpenAI GPT-5.1
+// Input $1.25/M Output $10.00/M Context 400,000 Web Search: $10/K
+const OPENROUTER_MODEL_GPT_5_1 = "openai/gpt-5.1"
+
 // Google Gemma 3 12B
 // Input $0.048/M Output $0.193/M Context 96,000
 const OPENROUTER_MODEL_GEMMA_3_12B_IT = "google/gemma-3-12b-it"
@@ -39,6 +43,10 @@ const OPENROUTER_MODEL_GEMINI_2_5_FLASH = "google/gemini-2.5-flash"
 // Google Gemini 2.5 Pro
 // Input $1.25/M Output $10/M Context 1,048,576
 const OPENROUTER_MODEL_GEMINI_2_5_PRO = "google/gemini-2.5-pro"
+
+// Google Gemini 3 Pro Preview
+// Input $2/M Output $12/M Context 1,048,576
+const OPENROUTER_MODEL_GEMINI_3_PRO_PREVIEW = "google/gemini-3-pro-preview"
 
 // Mistral Mistral Nemo
 // Input $0.01/M Output $0.04/M Context 131,072
