@@ -122,4 +122,8 @@ func init() {
 	RegisterProvider(ProviderOpenRouter, func(options LlmOptions) (LlmInterface, error) {
 		return newOpenRouterImplementation(options)
 	})
+
+	RegisterProvider(ProviderCustom, func(options LlmOptions) (LlmInterface, error) {
+		return newCustomImplementation(options)
+	})
 }

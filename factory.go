@@ -74,6 +74,7 @@ func createProvider(provider Provider, outputFormat OutputFormat, options LlmOpt
 		ProviderAnthropic,
 		ProviderMock,
 		ProviderOpenRouter,
+		ProviderCustom,
 	}
 
 	if !lo.Contains(supportedProviders, provider) {
