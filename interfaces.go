@@ -1,6 +1,9 @@
 package llm
 
-import "fmt"
+import (
+	"fmt"
+	"log/slog"
+)
 
 // LlmInterface is an interface for making LLM API calls
 type LlmInterface interface {
@@ -50,6 +53,9 @@ type LlmOptions struct {
 
 	// Verbose controls whether to log detailed information
 	Verbose bool
+
+	// Logger specifies a logger to use for error logging
+	Logger *slog.Logger
 
 	// OutputFormat specifies the output format from the LLM
 	OutputFormat OutputFormat

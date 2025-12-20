@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -22,6 +23,7 @@ type openrouterImplementation struct {
 	maxTokens   int
 	temperature float64
 	verbose     bool
+	logger      *slog.Logger
 	apiKey      string
 	baseURL     string
 	httpClient  openai.HTTPDoer
@@ -55,6 +57,7 @@ func newOpenRouterImplementation(options LlmOptions) (LlmInterface, error) {
 		maxTokens:   o.MaxTokens,
 		temperature: o.Temperature,
 		verbose:     o.Verbose,
+		logger:      o.Logger,
 		apiKey:      apiKey,
 		baseURL:     baseURL,
 		httpClient:  cfg.HTTPClient,
@@ -118,7 +121,12 @@ func (o *openrouterImplementation) Generate(systemPrompt string, userMessage str
 	// Generate response
 	resp, err := o.client.CreateChatCompletion(ctx, req)
 	if err != nil {
-		if o.verbose {
+		if o.logger != nil {
+			o.logger.Error("OpenRouter API request failed",
+				slog.String("error", err.Error()),
+				slog.String("model", model),
+				slog.String("base_url", o.baseURL))
+		} else if o.verbose {
 			fmt.Printf("OpenRouter generation error: %v\n", err)
 		}
 		return "", err
@@ -305,13 +313,13 @@ func (o *openrouterImplementation) GenerateImage(prompt string, opts ...LlmOptio
 
 func (o *openrouterImplementation) GenerateEmbedding(text string) ([]float32, error) {
 	ctx := context.Background()
-	
+
 	// OpenRouter uses OpenAI-compatible embeddings endpoint
 	req := openai.EmbeddingRequest{
 		Input: []string{text},
 		Model: openai.AdaEmbeddingV2,
 	}
-	
+
 	resp, err := o.client.CreateEmbeddings(ctx, req)
 	if err != nil {
 		if o.verbose {
@@ -319,10 +327,10 @@ func (o *openrouterImplementation) GenerateEmbedding(text string) ([]float32, er
 		}
 		return nil, err
 	}
-	
+
 	if len(resp.Data) == 0 {
 		return nil, fmt.Errorf("no embeddings generated")
 	}
-	
+
 	return resp.Data[0].Embedding, nil
 }
