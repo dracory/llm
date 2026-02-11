@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/samber/lo"
 	"github.com/sashabaranov/go-openai"
 )
 
@@ -63,36 +62,35 @@ func newOpenRouterImplementation(options LlmOptions) (LlmInterface, error) {
 	}, nil
 }
 
+// baseOptions returns the base LlmOptions from the struct fields for merging.
+func (o *openrouterImplementation) baseOptions() LlmOptions {
+	return LlmOptions{
+		Model:       o.model,
+		MaxTokens:   o.maxTokens,
+		Temperature: &o.temperature,
+		Verbose:     o.verbose,
+		Logger:      o.logger,
+	}
+}
+
 // Generate implements LlmInterface
 func (o *openrouterImplementation) Generate(systemPrompt string, userMessage string, opts ...LlmOptions) (string, error) {
-	options := lo.IfF(len(opts) > 0, func() LlmOptions { return opts[0] }).Else(LlmOptions{})
+	perCall := LlmOptions{}
+	if len(opts) > 0 {
+		perCall = opts[0]
+	}
+	merged := mergeOptions(o.baseOptions(), perCall)
 
 	ctx := context.Background()
 
-	// Apply options if provided
-	model := o.model
-	if options.Model != "" {
-		model = options.Model
-	}
-
-	maxTokens := o.maxTokens
-	if options.MaxTokens > 0 {
-		maxTokens = options.MaxTokens
-	}
-
-	temperature := o.temperature
-	if options.Temperature != nil {
-		temperature = *options.Temperature
-	}
-
-	verbose := o.verbose
-	if options.Verbose {
-		verbose = options.Verbose
-	}
+	model := merged.Model
+	maxTokens := merged.MaxTokens
+	temperature := derefFloat64(merged.Temperature, o.temperature)
+	verbose := merged.Verbose
 
 	// Configure response format based on output format
 	responseFormat := &openai.ChatCompletionResponseFormat{}
-	if options.OutputFormat == OutputFormatJSON {
+	if merged.OutputFormat == OutputFormatJSON {
 		responseFormat.Type = openai.ChatCompletionResponseFormatTypeJSONObject
 	} else {
 		responseFormat.Type = openai.ChatCompletionResponseFormatTypeText
@@ -165,35 +163,37 @@ func (o *openrouterImplementation) Generate(systemPrompt string, userMessage str
 
 // GenerateText implements LlmInterface
 func (o *openrouterImplementation) GenerateText(systemPrompt string, userPrompt string, opts ...LlmOptions) (string, error) {
-	options := lo.IfF(len(opts) > 0, func() LlmOptions { return opts[0] }).Else(LlmOptions{})
-	options.OutputFormat = OutputFormatText
-	return o.Generate(systemPrompt, userPrompt, options)
+	perCall := LlmOptions{}
+	if len(opts) > 0 {
+		perCall = opts[0]
+	}
+	perCall.OutputFormat = OutputFormatText
+	return o.Generate(systemPrompt, userPrompt, perCall)
 }
 
 // GenerateJSON implements LlmInterface
 func (o *openrouterImplementation) GenerateJSON(systemPrompt string, userPrompt string, opts ...LlmOptions) (string, error) {
-	options := lo.IfF(len(opts) > 0, func() LlmOptions { return opts[0] }).Else(LlmOptions{})
-	options.OutputFormat = OutputFormatJSON
-	return o.Generate(systemPrompt, userPrompt, options)
+	perCall := LlmOptions{}
+	if len(opts) > 0 {
+		perCall = opts[0]
+	}
+	perCall.OutputFormat = OutputFormatJSON
+	return o.Generate(systemPrompt, userPrompt, perCall)
 }
 
 // GenerateImage implements LlmInterface
 // OpenRouter uses the chat completions endpoint with modalities parameter for image generation
 func (o *openrouterImplementation) GenerateImage(prompt string, opts ...LlmOptions) ([]byte, error) {
-	options := lo.FirstOr(opts, LlmOptions{})
+	perCall := LlmOptions{}
+	if len(opts) > 0 {
+		perCall = opts[0]
+	}
+	merged := mergeOptions(o.baseOptions(), perCall)
 
 	ctx := context.Background()
 
-	// Apply options if provided
-	model := o.model
-	if options.Model != "" {
-		model = options.Model
-	}
-
-	verbose := o.verbose
-	if options.Verbose {
-		verbose = options.Verbose
-	}
+	model := merged.Model
+	verbose := merged.Verbose
 
 	if o.logger != nil {
 		o.logger.Debug("OpenRouter image generation request",

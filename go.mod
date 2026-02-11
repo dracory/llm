@@ -4,7 +4,6 @@ go 1.25
 
 require (
 	cloud.google.com/go/vertexai v0.15.0
-	github.com/samber/lo v1.52.0
 	github.com/sashabaranov/go-openai v1.41.2
 	github.com/spf13/cast v1.10.0
 	google.golang.org/api v0.266.0

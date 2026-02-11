@@ -10,18 +10,19 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/samber/lo"
 	"google.golang.org/genai"
 )
 
 // geminiImplementation implements LlmInterface for Gemini
 type geminiImplementation struct {
-	client     *genai.Client
-	model      string
-	verbose    bool
-	logger     *slog.Logger
-	apiKey     string
-	httpClient *http.Client
+	client      *genai.Client
+	model       string
+	maxTokens   int
+	temperature float64
+	verbose     bool
+	logger      *slog.Logger
+	apiKey      string
+	httpClient  *http.Client
 }
 
 // newGeminiImplementation creates a new Gemini provider implementation
@@ -53,18 +54,35 @@ func newGeminiImplementation(options LlmOptions) (LlmInterface, error) {
 	}
 
 	return &geminiImplementation{
-		client:     client,
-		model:      modelName,
-		verbose:    options.Verbose,
-		logger:     options.Logger,
-		apiKey:     options.ApiKey,
-		httpClient: &http.Client{Timeout: 30 * time.Second},
+		client:      client,
+		model:       modelName,
+		maxTokens:   options.MaxTokens,
+		temperature: derefFloat64(options.Temperature, 0.7),
+		verbose:     options.Verbose,
+		logger:      options.Logger,
+		apiKey:      options.ApiKey,
+		httpClient:  &http.Client{Timeout: 30 * time.Second},
 	}, nil
+}
+
+// baseOptions returns the base LlmOptions from the struct fields for merging.
+func (g *geminiImplementation) baseOptions() LlmOptions {
+	return LlmOptions{
+		Model:       g.model,
+		MaxTokens:   g.maxTokens,
+		Temperature: &g.temperature,
+		Verbose:     g.verbose,
+		Logger:      g.logger,
+	}
 }
 
 // Generate implements LlmInterface
 func (g *geminiImplementation) Generate(systemPrompt string, userMessage string, opts ...LlmOptions) (string, error) {
-	options := lo.IfF(len(opts) > 0, func() LlmOptions { return opts[0] }).Else(LlmOptions{})
+	perCall := LlmOptions{}
+	if len(opts) > 0 {
+		perCall = opts[0]
+	}
+	merged := mergeOptions(g.baseOptions(), perCall)
 
 	if g.client == nil {
 		return "", fmt.Errorf("gemini client not initialized")
@@ -78,7 +96,7 @@ func (g *geminiImplementation) Generate(systemPrompt string, userMessage string,
 
 	// Prepare system instruction
 	effectiveSystemPrompt := systemPrompt
-	if options.OutputFormat == OutputFormatJSON {
+	if merged.OutputFormat == OutputFormatJSON {
 		effectiveSystemPrompt += "\nYou must respond with valid JSON only. Do not include any text outside the JSON."
 	}
 
@@ -88,11 +106,11 @@ func (g *geminiImplementation) Generate(systemPrompt string, userMessage string,
 			Parts: []*genai.Part{{Text: effectiveSystemPrompt}},
 		},
 	}
-	if options.MaxTokens > 0 {
-		genConfig.MaxOutputTokens = int32(options.MaxTokens)
+	if merged.MaxTokens > 0 {
+		genConfig.MaxOutputTokens = int32(merged.MaxTokens)
 	}
-	if options.Temperature != nil {
-		genConfig.Temperature = genai.Ptr(float32(*options.Temperature))
+	if merged.Temperature != nil {
+		genConfig.Temperature = genai.Ptr(float32(*merged.Temperature))
 	}
 
 	// Generate response
@@ -135,16 +153,22 @@ func (g *geminiImplementation) Generate(systemPrompt string, userMessage string,
 
 // GenerateText implements LlmInterface
 func (g *geminiImplementation) GenerateText(systemPrompt string, userPrompt string, opts ...LlmOptions) (string, error) {
-	options := lo.IfF(len(opts) > 0, func() LlmOptions { return opts[0] }).Else(LlmOptions{})
-	options.OutputFormat = OutputFormatText
-	return g.Generate(systemPrompt, userPrompt, options)
+	perCall := LlmOptions{}
+	if len(opts) > 0 {
+		perCall = opts[0]
+	}
+	perCall.OutputFormat = OutputFormatText
+	return g.Generate(systemPrompt, userPrompt, perCall)
 }
 
 // GenerateJSON implements LlmInterface
 func (g *geminiImplementation) GenerateJSON(systemPrompt string, userPrompt string, opts ...LlmOptions) (string, error) {
-	options := lo.IfF(len(opts) > 0, func() LlmOptions { return opts[0] }).Else(LlmOptions{})
-	options.OutputFormat = OutputFormatJSON
-	return g.Generate(systemPrompt, userPrompt, options)
+	perCall := LlmOptions{}
+	if len(opts) > 0 {
+		perCall = opts[0]
+	}
+	perCall.OutputFormat = OutputFormatJSON
+	return g.Generate(systemPrompt, userPrompt, perCall)
 }
 
 // GenerateImage implements LlmInterface

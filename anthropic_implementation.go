@@ -17,8 +17,6 @@ import (
 	"os"
 	"strings"
 	"time"
-
-	"github.com/samber/lo"
 )
 
 // anthropicImplementation implements LlmInterface for Anthropic
@@ -170,9 +168,25 @@ func newAnthropicImplementation(options LlmOptions) (LlmInterface, error) {
 	}, nil
 }
 
+// baseOptions returns the base LlmOptions from the struct fields for merging.
+func (a *anthropicImplementation) baseOptions() LlmOptions {
+	return LlmOptions{
+		Model:           a.model,
+		MaxTokens:       a.maxTokens,
+		Temperature:     &a.temperature,
+		Verbose:         a.verbose,
+		Logger:          a.logger,
+		ProviderOptions: a.providerOptions,
+	}
+}
+
 // Generate implements LlmInterface
 func (a *anthropicImplementation) Generate(systemPrompt string, userMessage string, opts ...LlmOptions) (string, error) {
-	options := lo.IfF(len(opts) > 0, func() LlmOptions { return opts[0] }).Else(LlmOptions{})
+	perCall := LlmOptions{}
+	if len(opts) > 0 {
+		perCall = opts[0]
+	}
+	merged := mergeOptions(a.baseOptions(), perCall)
 
 	// Validate API key
 	if a.apiKey == "" {
@@ -181,21 +195,9 @@ func (a *anthropicImplementation) Generate(systemPrompt string, userMessage stri
 
 	ctx := context.Background()
 
-	// Apply options if provided
-	model := a.model
-	if options.Model != "" {
-		model = options.Model
-	}
-
-	maxTokens := a.maxTokens
-	if options.MaxTokens > 0 {
-		maxTokens = options.MaxTokens
-	}
-
-	temperature := a.temperature
-	if options.Temperature != nil {
-		temperature = *options.Temperature
-	}
+	model := merged.Model
+	maxTokens := merged.MaxTokens
+	temperature := derefFloat64(merged.Temperature, a.temperature)
 
 	// Prepare request body
 	requestBody := map[string]interface{}{
@@ -212,7 +214,7 @@ func (a *anthropicImplementation) Generate(systemPrompt string, userMessage stri
 	}
 
 	// Add response format if JSON is requested
-	if options.OutputFormat == OutputFormatJSON {
+	if merged.OutputFormat == OutputFormatJSON {
 		requestBody["response_format"] = map[string]string{
 			"type": "json_object",
 		}
@@ -293,19 +295,23 @@ func (a *anthropicImplementation) Generate(systemPrompt string, userMessage stri
 
 // GenerateText implements LlmInterface
 func (a *anthropicImplementation) GenerateText(systemPrompt string, userPrompt string, opts ...LlmOptions) (string, error) {
-	options := lo.IfF(len(opts) > 0, func() LlmOptions { return opts[0] }).Else(LlmOptions{})
-
-	options.OutputFormat = OutputFormatText
-	return a.Generate(systemPrompt, userPrompt, options)
+	perCall := LlmOptions{}
+	if len(opts) > 0 {
+		perCall = opts[0]
+	}
+	perCall.OutputFormat = OutputFormatText
+	return a.Generate(systemPrompt, userPrompt, perCall)
 }
 
 // GenerateJSON implements LlmInterface
 func (a *anthropicImplementation) GenerateJSON(systemPrompt string, userPrompt string, opts ...LlmOptions) (string, error) {
-	options := lo.IfF(len(opts) > 0, func() LlmOptions { return opts[0] }).Else(LlmOptions{})
-
-	options.OutputFormat = OutputFormatJSON
+	perCall := LlmOptions{}
+	if len(opts) > 0 {
+		perCall = opts[0]
+	}
+	perCall.OutputFormat = OutputFormatJSON
 	systemPrompt += "\nYou must respond with valid JSON only. Do not include any text outside the JSON."
-	return a.Generate(systemPrompt, userPrompt, options)
+	return a.Generate(systemPrompt, userPrompt, perCall)
 }
 
 // GenerateImage implements LlmInterface

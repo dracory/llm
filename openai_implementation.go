@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/samber/lo"
 	"github.com/sashabaranov/go-openai"
 )
 
@@ -45,31 +44,34 @@ func newOpenaiImplementation(options LlmOptions) (LlmInterface, error) {
 	}, nil
 }
 
+// baseOptions returns the base LlmOptions from the struct fields for merging.
+func (o *openaiImplementation) baseOptions() LlmOptions {
+	return LlmOptions{
+		Model:       o.model,
+		MaxTokens:   o.maxTokens,
+		Temperature: &o.temperature,
+		Verbose:     o.verbose,
+		Logger:      o.logger,
+	}
+}
+
 // Generate implements LlmInterface
 func (o *openaiImplementation) Generate(systemPrompt string, userMessage string, opts ...LlmOptions) (string, error) {
-	options := lo.IfF(len(opts) > 0, func() LlmOptions { return opts[0] }).Else(LlmOptions{})
+	perCall := LlmOptions{}
+	if len(opts) > 0 {
+		perCall = opts[0]
+	}
+	merged := mergeOptions(o.baseOptions(), perCall)
 
 	ctx := context.Background()
 
-	// Apply options if provided
-	model := o.model
-	if options.Model != "" {
-		model = options.Model
-	}
-
-	maxTokens := o.maxTokens
-	if options.MaxTokens > 0 {
-		maxTokens = options.MaxTokens
-	}
-
-	temperature := o.temperature
-	if options.Temperature != nil {
-		temperature = *options.Temperature
-	}
+	model := merged.Model
+	maxTokens := merged.MaxTokens
+	temperature := derefFloat64(merged.Temperature, o.temperature)
 
 	// Configure response format based on output format
 	responseFormat := &openai.ChatCompletionResponseFormat{}
-	if options.OutputFormat == OutputFormatJSON {
+	if merged.OutputFormat == OutputFormatJSON {
 		responseFormat.Type = openai.ChatCompletionResponseFormatTypeJSONObject
 	} else {
 		responseFormat.Type = openai.ChatCompletionResponseFormatTypeText
@@ -116,33 +118,39 @@ func (o *openaiImplementation) Generate(systemPrompt string, userMessage string,
 
 // GenerateText implements LlmInterface
 func (o *openaiImplementation) GenerateText(systemPrompt string, userPrompt string, opts ...LlmOptions) (string, error) {
-	options := lo.IfF(len(opts) > 0, func() LlmOptions { return opts[0] }).Else(LlmOptions{})
-	options.OutputFormat = OutputFormatText
-	return o.Generate(systemPrompt, userPrompt, options)
+	perCall := LlmOptions{}
+	if len(opts) > 0 {
+		perCall = opts[0]
+	}
+	perCall.OutputFormat = OutputFormatText
+	return o.Generate(systemPrompt, userPrompt, perCall)
 }
 
 // GenerateJSON implements LlmInterface
 func (o *openaiImplementation) GenerateJSON(systemPrompt string, userPrompt string, opts ...LlmOptions) (string, error) {
-	options := lo.IfF(len(opts) > 0, func() LlmOptions { return opts[0] }).Else(LlmOptions{})
-	options.OutputFormat = OutputFormatJSON
-	return o.Generate(systemPrompt, userPrompt, options)
+	perCall := LlmOptions{}
+	if len(opts) > 0 {
+		perCall = opts[0]
+	}
+	perCall.OutputFormat = OutputFormatJSON
+	return o.Generate(systemPrompt, userPrompt, perCall)
 }
 
 // GenerateImage implements LlmInterface
 func (o *openaiImplementation) GenerateImage(prompt string, opts ...LlmOptions) ([]byte, error) {
-	options := lo.IfF(len(opts) > 0, func() LlmOptions { return opts[0] }).Else(LlmOptions{})
+	perCall := LlmOptions{}
+	if len(opts) > 0 {
+		perCall = opts[0]
+	}
+	merged := mergeOptions(o.baseOptions(), perCall)
 	ctx := context.Background()
 
-	// Determine image model from options or default
-	model := o.model
-	if options.Model != "" {
-		model = options.Model
-	}
+	model := merged.Model
 
 	// Determine image size from provider options or default
 	size := openai.CreateImageSize1024x1024
-	if options.ProviderOptions != nil {
-		if v, ok := options.ProviderOptions["image_size"].(string); ok && v != "" {
+	if merged.ProviderOptions != nil {
+		if v, ok := merged.ProviderOptions["image_size"].(string); ok && v != "" {
 			size = v
 		}
 	}

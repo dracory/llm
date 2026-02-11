@@ -11,8 +11,6 @@ import (
 	"net/http"
 	"strings"
 	"time"
-
-	"github.com/samber/lo"
 )
 
 type customImplementation struct {
@@ -69,17 +67,26 @@ func newCustomImplementation(options LlmOptions) (LlmInterface, error) {
 	}, nil
 }
 
-func (c *customImplementation) Generate(systemPrompt string, userMessage string, opts ...LlmOptions) (string, error) {
-	options := lo.IfF(len(opts) > 0, func() LlmOptions { return opts[0] }).Else(LlmOptions{})
-	merged := mergeOptions(LlmOptions{
+// baseOptions returns the base LlmOptions from the struct fields for merging.
+func (c *customImplementation) baseOptions() LlmOptions {
+	return LlmOptions{
 		Model:       c.model,
 		MaxTokens:   c.maxTokens,
 		Temperature: &c.temperature,
 		Verbose:     c.verbose,
+		Logger:      c.logger,
 		ProviderOptions: map[string]any{
 			"url": c.endpointURL,
 		},
-	}, options)
+	}
+}
+
+func (c *customImplementation) Generate(systemPrompt string, userMessage string, opts ...LlmOptions) (string, error) {
+	perCall := LlmOptions{}
+	if len(opts) > 0 {
+		perCall = opts[0]
+	}
+	merged := mergeOptions(c.baseOptions(), perCall)
 
 	endpointURL := c.endpointURL
 	if merged.ProviderOptions != nil {
@@ -103,20 +110,9 @@ func (c *customImplementation) Generate(systemPrompt string, userMessage string,
 		return "", fmt.Errorf("endpoint url is required")
 	}
 
-	model := c.model
-	if merged.Model != "" {
-		model = merged.Model
-	}
-
-	maxTokens := c.maxTokens
-	if merged.MaxTokens > 0 {
-		maxTokens = merged.MaxTokens
-	}
-
-	temperature := c.temperature
-	if merged.Temperature != nil {
-		temperature = *merged.Temperature
-	}
+	model := merged.Model
+	maxTokens := merged.MaxTokens
+	temperature := derefFloat64(merged.Temperature, c.temperature)
 
 	responseFormat := "text"
 	if merged.OutputFormat == OutputFormatJSON {
@@ -209,15 +205,21 @@ func (c *customImplementation) Generate(systemPrompt string, userMessage string,
 }
 
 func (c *customImplementation) GenerateText(systemPrompt string, userPrompt string, opts ...LlmOptions) (string, error) {
-	options := lo.IfF(len(opts) > 0, func() LlmOptions { return opts[0] }).Else(LlmOptions{})
-	options.OutputFormat = OutputFormatText
-	return c.Generate(systemPrompt, userPrompt, options)
+	perCall := LlmOptions{}
+	if len(opts) > 0 {
+		perCall = opts[0]
+	}
+	perCall.OutputFormat = OutputFormatText
+	return c.Generate(systemPrompt, userPrompt, perCall)
 }
 
 func (c *customImplementation) GenerateJSON(systemPrompt string, userPrompt string, opts ...LlmOptions) (string, error) {
-	options := lo.IfF(len(opts) > 0, func() LlmOptions { return opts[0] }).Else(LlmOptions{})
-	options.OutputFormat = OutputFormatJSON
-	return c.Generate(systemPrompt, userPrompt, options)
+	perCall := LlmOptions{}
+	if len(opts) > 0 {
+		perCall = opts[0]
+	}
+	perCall.OutputFormat = OutputFormatJSON
+	return c.Generate(systemPrompt, userPrompt, perCall)
 }
 
 func (c *customImplementation) GenerateImage(prompt string, opts ...LlmOptions) ([]byte, error) {

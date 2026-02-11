@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"cloud.google.com/go/vertexai/genai"
-	"github.com/samber/lo"
 	"github.com/spf13/cast"
 	"google.golang.org/api/option"
 )
@@ -42,8 +41,11 @@ type vertexLlmImpl struct {
 // It merges the provided options with the default options and returns the generated response.
 // This allows the user to override the default options.
 func (c *vertexLlmImpl) Generate(systemPrompt string, userMessage string, opts ...LlmOptions) (string, error) {
-	options := lo.IfF(len(opts) > 0, func() LlmOptions { return opts[0] }).Else(LlmOptions{})
-	options = mergeOptions(c.options, options)
+	perCall := LlmOptions{}
+	if len(opts) > 0 {
+		perCall = opts[0]
+	}
+	options := mergeOptions(c.options, perCall)
 
 	if options.ProjectID == "" {
 		return "", errors.New("project id is required")
@@ -171,22 +173,31 @@ func (c *vertexLlmImpl) Generate(systemPrompt string, userMessage string, opts .
 }
 
 func (l *vertexLlmImpl) GenerateText(systemPrompt string, userPrompt string, opts ...LlmOptions) (string, error) {
-	options := lo.IfF(len(opts) > 0, func() LlmOptions { return opts[0] }).Else(LlmOptions{})
-	options = mergeOptions(l.options, options)
+	perCall := LlmOptions{}
+	if len(opts) > 0 {
+		perCall = opts[0]
+	}
+	options := mergeOptions(l.options, perCall)
 	options.OutputFormat = OutputFormatText
 	return l.Generate(systemPrompt, userPrompt, options)
 }
 
 func (l *vertexLlmImpl) GenerateJSON(systemPrompt string, userPrompt string, opts ...LlmOptions) (string, error) {
-	options := lo.IfF(len(opts) > 0, func() LlmOptions { return opts[0] }).Else(LlmOptions{})
-	options = mergeOptions(l.options, options)
+	perCall := LlmOptions{}
+	if len(opts) > 0 {
+		perCall = opts[0]
+	}
+	options := mergeOptions(l.options, perCall)
 	options.OutputFormat = OutputFormatJSON
 	return l.Generate(systemPrompt, userPrompt, options)
 }
 
 func (l *vertexLlmImpl) GenerateImage(prompt string, opts ...LlmOptions) ([]byte, error) {
-	options := lo.IfF(len(opts) > 0, func() LlmOptions { return opts[0] }).Else(LlmOptions{})
-	options = mergeOptions(l.options, options)
+	perCall := LlmOptions{}
+	if len(opts) > 0 {
+		perCall = opts[0]
+	}
+	options := mergeOptions(l.options, perCall)
 
 	if options.ProjectID == "" {
 		return nil, errors.New("project id is required")

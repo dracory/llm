@@ -1,9 +1,5 @@
 package llm
 
-import (
-	"github.com/samber/lo"
-)
-
 // =======================================================================
 // == CONSTRUCTOR
 // =======================================================================
@@ -32,7 +28,10 @@ type mockImplementation struct {
 // =======================================================================
 
 func (c *mockImplementation) Generate(systemPrompt string, userMessage string, opts ...LlmOptions) (string, error) {
-	options := lo.FirstOr(opts, LlmOptions{})
+	options := LlmOptions{}
+	if len(opts) > 0 {
+		options = opts[0]
+	}
 
 	// Return mock response if provided in options
 	if options.MockResponse != "" {
@@ -53,15 +52,21 @@ func (c *mockImplementation) Generate(systemPrompt string, userMessage string, o
 }
 
 func (c *mockImplementation) GenerateText(systemPrompt string, userPrompt string, opts ...LlmOptions) (string, error) {
-	options := lo.IfF(len(opts) > 0, func() LlmOptions { return opts[0] }).Else(LlmOptions{})
-	options.OutputFormat = OutputFormatText
-	return c.Generate(systemPrompt, userPrompt, options)
+	perCall := LlmOptions{}
+	if len(opts) > 0 {
+		perCall = opts[0]
+	}
+	perCall.OutputFormat = OutputFormatText
+	return c.Generate(systemPrompt, userPrompt, perCall)
 }
 
 func (c *mockImplementation) GenerateJSON(systemPrompt string, userPrompt string, opts ...LlmOptions) (string, error) {
-	options := lo.IfF(len(opts) > 0, func() LlmOptions { return opts[0] }).Else(LlmOptions{})
-	options.OutputFormat = OutputFormatJSON
-	return c.Generate(systemPrompt, userPrompt, options)
+	perCall := LlmOptions{}
+	if len(opts) > 0 {
+		perCall = opts[0]
+	}
+	perCall.OutputFormat = OutputFormatJSON
+	return c.Generate(systemPrompt, userPrompt, perCall)
 }
 
 func (c *mockImplementation) GenerateImage(prompt string, opts ...LlmOptions) ([]byte, error) {
