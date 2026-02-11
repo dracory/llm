@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/samber/lo"
 	"google.golang.org/genai"
@@ -14,10 +15,11 @@ import (
 
 // geminiImplementation implements LlmInterface for Gemini
 type geminiImplementation struct {
-	client  *genai.Client
-	model   string
-	verbose bool
-	apiKey  string
+	client     *genai.Client
+	model      string
+	verbose    bool
+	apiKey     string
+	httpClient *http.Client
 }
 
 // newGeminiImplementation creates a new Gemini provider implementation
@@ -46,10 +48,11 @@ func newGeminiImplementation(options LlmOptions) (LlmInterface, error) {
 	}
 
 	return &geminiImplementation{
-		client:  client,
-		model:   modelName,
-		verbose: options.Verbose,
-		apiKey:  options.ApiKey,
+		client:     client,
+		model:      modelName,
+		verbose:    options.Verbose,
+		apiKey:     options.ApiKey,
+		httpClient: &http.Client{Timeout: 30 * time.Second},
 	}, nil
 }
 
@@ -131,8 +134,6 @@ func (g *geminiImplementation) GenerateText(systemPrompt string, userPrompt stri
 func (g *geminiImplementation) GenerateJSON(systemPrompt string, userPrompt string, opts ...LlmOptions) (string, error) {
 	options := lo.IfF(len(opts) > 0, func() LlmOptions { return opts[0] }).Else(LlmOptions{})
 	options.OutputFormat = OutputFormatJSON
-	// Add a specific instruction for JSON output
-	systemPrompt += "\nYou must respond with valid JSON only. Do not include any text outside the JSON."
 	return g.Generate(systemPrompt, userPrompt, options)
 }
 
@@ -166,13 +167,13 @@ func (g *geminiImplementation) GenerateEmbedding(text string) ([]float32, error)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("x-goog-api-key", g.apiKey)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := g.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 10<<20))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}

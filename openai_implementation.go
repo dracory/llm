@@ -177,9 +177,15 @@ func (o *openaiImplementation) GenerateImage(prompt string, opts ...LlmOptions) 
 func (o *openaiImplementation) GenerateEmbedding(text string) ([]float32, error) {
 	ctx := context.Background()
 
+	// Use the configured model if set, otherwise fall back to Ada
+	embeddingModel := openai.EmbeddingModel(o.model)
+	if o.model == "" {
+		embeddingModel = openai.AdaEmbeddingV2
+	}
+
 	req := openai.EmbeddingRequest{
 		Input: []string{text},
-		Model: openai.AdaEmbeddingV2,
+		Model: embeddingModel,
 	}
 
 	resp, err := o.client.CreateEmbeddings(ctx, req)

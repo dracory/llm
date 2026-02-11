@@ -51,39 +51,62 @@ func TestProviderRegistry(t *testing.T) {
 
 // TestMockLLM tests the mock LLM implementation
 func TestMockLLM(t *testing.T) {
-	mockLLM, _ := newMockImplementation(LlmOptions{})
+	mockLLM, _ := newMockImplementation(LlmOptions{
+		MockResponse: "mock response",
+	})
 
 	// Test Generate
-	response, err := mockLLM.Generate("find the details of the contract", "test message")
+	response, err := mockLLM.Generate("system prompt", "test message")
 	if err != nil {
 		t.Errorf("Mock LLM Generate failed: %v", err)
 	}
-	if response == "" {
-		t.Errorf("Mock LLM returned empty response")
+	if response != "mock response" {
+		t.Errorf("Mock LLM returned unexpected response: %s", response)
 	}
 
 	// Test GenerateText
-	textResponse, err := mockLLM.GenerateText("find the details of the contract", "test message")
+	textResponse, err := mockLLM.GenerateText("system prompt", "test message")
 	if err != nil {
 		t.Errorf("Mock LLM GenerateText failed: %v", err)
 	}
-	if textResponse == "" {
-		t.Errorf("Mock LLM returned empty text response")
+	if textResponse != "mock response" {
+		t.Errorf("Mock LLM returned unexpected text response: %s", textResponse)
 	}
 
 	// Test GenerateJSON
-	jsonResponse, err := mockLLM.GenerateJSON("find the details of the contract", "test message")
+	jsonResponse, err := mockLLM.GenerateJSON("system prompt", "test message")
 	if err != nil {
 		t.Errorf("Mock LLM GenerateJSON failed: %v", err)
 	}
-	if jsonResponse == "" {
-		t.Errorf("Mock LLM returned empty JSON response")
+	if jsonResponse != "mock response" {
+		t.Errorf("Mock LLM returned unexpected JSON response: %s", jsonResponse)
+	}
+
+	// Test per-call MockResponse override
+	overrideResponse, err := mockLLM.Generate("system prompt", "test message", LlmOptions{
+		MockResponse: "override response",
+	})
+	if err != nil {
+		t.Errorf("Mock LLM Generate with override failed: %v", err)
+	}
+	if overrideResponse != "override response" {
+		t.Errorf("Mock LLM did not honor per-call MockResponse: %s", overrideResponse)
 	}
 
 	// Test GenerateImage
 	_, err = mockLLM.GenerateImage("test prompt")
 	if err != nil {
 		t.Errorf("Mock LLM GenerateImage failed: %v", err)
+	}
+
+	// Test empty user message returns empty (using mock without default MockResponse)
+	emptyMock, _ := newMockImplementation(LlmOptions{})
+	emptyResponse, err := emptyMock.Generate("system prompt", "")
+	if err != nil {
+		t.Errorf("Mock LLM Generate with empty message failed: %v", err)
+	}
+	if emptyResponse != "" {
+		t.Errorf("Mock LLM should return empty for empty user message, got: %s", emptyResponse)
 	}
 }
 

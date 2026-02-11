@@ -28,6 +28,7 @@ type anthropicImplementation struct {
 	temperature     float64
 	verbose         bool
 	providerOptions map[string]any
+	httpClient      *http.Client
 }
 
 func mergeProviderOptions(base map[string]any, override map[string]any) map[string]any {
@@ -150,6 +151,11 @@ func newAnthropicImplementation(options LlmOptions) (LlmInterface, error) {
 		model = "claude-3-opus-20240229" // Default to Claude 3 Opus
 	}
 
+	client, err := buildAnthropicHTTPClient(options.ProviderOptions)
+	if err != nil {
+		return nil, fmt.Errorf("failed to configure anthropic http client: %w", err)
+	}
+
 	return &anthropicImplementation{
 		apiKey:          options.ApiKey,
 		model:           model,
@@ -157,14 +163,13 @@ func newAnthropicImplementation(options LlmOptions) (LlmInterface, error) {
 		temperature:     options.Temperature,
 		verbose:         options.Verbose,
 		providerOptions: options.ProviderOptions,
+		httpClient:      client,
 	}, nil
 }
 
 // Generate implements LlmInterface
 func (a *anthropicImplementation) Generate(systemPrompt string, userMessage string, opts ...LlmOptions) (string, error) {
 	options := lo.IfF(len(opts) > 0, func() LlmOptions { return opts[0] }).Else(LlmOptions{})
-
-	effectiveProviderOptions := mergeProviderOptions(a.providerOptions, options.ProviderOptions)
 
 	// Validate API key
 	if a.apiKey == "" {
@@ -228,12 +233,7 @@ func (a *anthropicImplementation) Generate(systemPrompt string, userMessage stri
 	req.Header.Set("anthropic-version", "2023-06-01")
 
 	// Send request
-	client, err := buildAnthropicHTTPClient(effectiveProviderOptions)
-	if err != nil {
-		return "", fmt.Errorf("failed to configure anthropic http client: %w", err)
-	}
-
-	resp, err := client.Do(req)
+	resp, err := a.httpClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("failed to send request: %v", err)
 	}
@@ -248,8 +248,8 @@ func (a *anthropicImplementation) Generate(systemPrompt string, userMessage stri
 		}
 	}()
 
-	// Read response body
-	body, err := io.ReadAll(resp.Body)
+	// Read response body (limit to 10 MB to prevent memory exhaustion)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 10<<20))
 	if err != nil {
 		return "", fmt.Errorf("failed to read response body: %v", err)
 	}

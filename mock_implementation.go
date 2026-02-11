@@ -1,8 +1,6 @@
 package llm
 
 import (
-	"strings"
-
 	"github.com/samber/lo"
 )
 
@@ -49,40 +47,6 @@ func (c *mockImplementation) Generate(systemPrompt string, userMessage string, o
 	// Handle empty input
 	if userMessage == "" {
 		return "", nil
-	}
-
-	// Handle markdown conversion requests
-	if strings.Contains(systemPrompt, "You are an expert document formatter and Markdown conversion specialist") {
-		// Return a simple markdown version of the input
-		return "# Test Contract\n\nThis is a test contract.\n\n1. First term\n2. Second term", nil
-	}
-
-	if strings.Contains(systemPrompt, `find the details of the contract`) {
-		return `{"area_of_law": "Family Law","contract_type": "Agreement","country": "US","state": "Idaho"}`,
-			nil
-	}
-
-	if strings.Contains(systemPrompt, `Your primary task is to thoroughly review`) {
-		return `{
-			"overallSummary": "This is a mock summary from the mock implementation.",
-			"overallRisk": "Low",
-			"findings": [
-				{
-					"section": "Term and Termination",
-					"issue": "The automatic renewal clause does not specify the notice period required for termination before renewal.",
-					"severity": "moderate"
-				}
-			],
-			"recommendations": [
-				"It is recommended to negotiate a shorter automatic renewal period with a clear notice period for termination."
-			]
-		}`,
-			nil
-	}
-
-	if strings.Contains(systemPrompt, `analyze this section thoroughly`) {
-		return `{"findings":[{"section":"Term and Termination","issue":"The automatic renewal clause does not specify the notice period required for termination before renewal.","severity":"moderate"},{"section":"Confidentiality","issue":"The definition of 'Confidential Information' is overly broad and could encompass publicly known information.","severity":"low"},{"section":"Payment","issue":"The late payment penalty clause does not specify the calculation method for the penalty.","severity":"high"}],"recommendations":["The contract is generally favorable, but some revisions are recommended to address the identified issues in the 'Term and Termination', 'Confidentiality', and 'Payment' sections.","It is recommended to negotiate a shorter automatic renewal period with a clear notice period for termination and refine the definition of 'Confidential Information' to exclude publicly known information.","Additionally, the late payment penalty clause should be clarified to specify the calculation method for the penalty."]}`,
-			nil
 	}
 
 	return "", nil

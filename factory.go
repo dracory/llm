@@ -2,8 +2,6 @@ package llm
 
 import (
 	"fmt"
-
-	"github.com/samber/lo"
 )
 
 // TextModel creates an LLM model for text output
@@ -27,11 +25,15 @@ func createProvider(provider Provider, outputFormat OutputFormat, options LlmOpt
 	options.Provider = provider
 	options.OutputFormat = outputFormat
 
+	if provider == ProviderOpenAI && options.ApiKey == "" {
+		return nil, fmt.Errorf("openai api key is required")
+	}
+
 	if provider == ProviderGemini && options.ApiKey == "" {
 		return nil, fmt.Errorf("google gemini api key is required")
 	}
 
-	if provider == ProviderVertex && options.ApiKey == "" {
+	if provider == ProviderVertex && options.ProjectID == "" {
 		return nil, fmt.Errorf("vertexai project id is required")
 	}
 
@@ -59,26 +61,8 @@ func createProvider(provider Provider, outputFormat OutputFormat, options LlmOpt
 		options.Temperature = 0.7
 	}
 
-	if options.ProjectID == "" && provider == ProviderVertex {
-		return nil, fmt.Errorf("vertexai project id is required")
-	}
-
 	if options.Region == "" && provider == ProviderVertex {
 		options.Region = "europe-west1"
-	}
-
-	supportedProviders := []Provider{
-		ProviderOpenAI,
-		ProviderGemini,
-		ProviderVertex,
-		ProviderAnthropic,
-		ProviderMock,
-		ProviderOpenRouter,
-		ProviderCustom,
-	}
-
-	if !lo.Contains(supportedProviders, provider) {
-		return nil, fmt.Errorf("unsupported provider: %s", provider)
 	}
 
 	return NewLLM(options)

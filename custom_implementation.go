@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/samber/lo"
 )
@@ -52,7 +53,7 @@ func newCustomImplementation(options LlmOptions) (LlmInterface, error) {
 		model = "default"
 	}
 
-	client := &http.Client{}
+	client := &http.Client{Timeout: 30 * time.Second}
 
 	return &customImplementation{
 		apiKey:      apiKey,
@@ -167,7 +168,7 @@ func (c *customImplementation) Generate(systemPrompt string, userMessage string,
 	}
 	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, 10<<20))
 	if err != nil {
 		return "", fmt.Errorf("failed to read response: %w", err)
 	}

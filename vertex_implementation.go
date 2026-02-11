@@ -69,21 +69,28 @@ func (c *vertexLlmImpl) Generate(systemPrompt string, userMessage string, opts .
 		}
 	}()
 
-	var final string
+	// Prepare system instruction
+	effectiveSystemPrompt := systemPrompt
 	if options.OutputFormat == OutputFormatJSON {
-		final = systemPrompt + "\n\nUSER:" + userMessage + "\n\nYou must respond with a JSON object only. Do not include any text outside the JSON."
-	} else {
-		final = systemPrompt + "\n\nUSER:" + userMessage
+		effectiveSystemPrompt += "\nYou must respond with a JSON object only. Do not include any text outside the JSON."
 	}
 
 	if options.Verbose {
-		if _, err := cfmt.Warningln("Final prompt:", final); err != nil {
-			fmt.Printf("failed to log final prompt: %v\n", err)
+		if _, err := cfmt.Warningln("System prompt:", effectiveSystemPrompt); err != nil {
+			fmt.Printf("failed to log system prompt: %v\n", err)
+		}
+		if _, err := cfmt.Warningln("User message:", userMessage); err != nil {
+			fmt.Printf("failed to log user message: %v\n", err)
 		}
 	}
 
 	// For text-only input, use the gemini-pro model
 	model := client.GenerativeModel(findVertexModelName(options.Model))
+
+	// Set system instruction separately from user content
+	model.SystemInstruction = &genai.Content{
+		Parts: []genai.Part{genai.Text(effectiveSystemPrompt)},
+	}
 
 	// Convert values to pointers for generation config
 	temp := float32(options.Temperature)
@@ -138,18 +145,23 @@ func (c *vertexLlmImpl) Generate(systemPrompt string, userMessage string, opts .
 		model.SafetySettings = safetySettings
 	}
 
-	resp, err := model.GenerateContent(ctx, genai.Text(final))
+	resp, err := model.GenerateContent(ctx, genai.Text(userMessage))
 	if err != nil {
 		return "", err
 	}
 
 	// Parse response
-	if len(resp.Candidates) == 0 || len(resp.Candidates[0].Content.Parts) != 1 {
-		return "", fmt.Errorf("unexpected vertex response: no candidates or unexpected parts count")
+	if len(resp.Candidates) == 0 || len(resp.Candidates[0].Content.Parts) == 0 {
+		return "", fmt.Errorf("unexpected vertex response: no candidates or empty parts")
 	}
 
-	str := cast.ToString(resp.Candidates[0].Content.Parts[0])
-	return strings.TrimSpace(str), nil
+	// Iterate over all parts and concatenate text parts
+	var result string
+	for _, part := range resp.Candidates[0].Content.Parts {
+		result += cast.ToString(part)
+	}
+
+	return strings.TrimSpace(result), nil
 }
 
 func (l *vertexLlmImpl) GenerateText(systemPrompt string, userPrompt string, opts ...LlmOptions) (string, error) {

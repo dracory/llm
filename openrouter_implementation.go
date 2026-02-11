@@ -243,7 +243,7 @@ func (o *openrouterImplementation) GenerateImage(prompt string, opts ...LlmOptio
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 100<<20))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
@@ -317,9 +317,15 @@ func (o *openrouterImplementation) GenerateEmbedding(text string) ([]float32, er
 	ctx := context.Background()
 
 	// OpenRouter uses OpenAI-compatible embeddings endpoint
+	// Use the configured model if set, otherwise fall back to Ada
+	embeddingModel := openai.EmbeddingModel(o.model)
+	if o.model == "" || o.model == "openrouter/auto" {
+		embeddingModel = openai.AdaEmbeddingV2
+	}
+
 	req := openai.EmbeddingRequest{
 		Input: []string{text},
-		Model: openai.AdaEmbeddingV2,
+		Model: embeddingModel,
 	}
 
 	resp, err := o.client.CreateEmbeddings(ctx, req)
