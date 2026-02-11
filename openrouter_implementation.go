@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -132,19 +131,29 @@ func (o *openrouterImplementation) Generate(systemPrompt string, userMessage str
 		return "", err
 	}
 
-	if verbose {
-		log.Println("OpenRouter response: ", resp)
+	if o.logger != nil {
+		o.logger.Debug("OpenRouter response received",
+			slog.String("model", model))
+	} else if verbose {
+		fmt.Printf("OpenRouter response: %v\n", resp)
 	}
 
 	if len(resp.Choices) == 0 {
-		if verbose {
-			fmt.Printf("no response from OpenRouter")
+		if o.logger != nil {
+			o.logger.Warn("no response from OpenRouter",
+				slog.String("model", model))
+		} else if verbose {
+			fmt.Printf("no response from OpenRouter\n")
 		}
 		return "", fmt.Errorf("no response from OpenRouter")
 	}
 
 	response := resp.Choices[0].Message.Content
-	if verbose {
+	if o.logger != nil {
+		o.logger.Debug("OpenRouter response content",
+			slog.String("model", model),
+			slog.Int("length", len(response)))
+	} else if verbose {
 		fmt.Printf("OpenRouter response: %s\n", response)
 	}
 	return strings.TrimSpace(response), nil
