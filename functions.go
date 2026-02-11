@@ -1,5 +1,13 @@
 package llm
 
+// derefFloat64 returns the value pointed to by p, or defaultVal if p is nil.
+func derefFloat64(p *float64, defaultVal float64) float64 {
+	if p != nil {
+		return *p
+	}
+	return defaultVal
+}
+
 // mergeOptions merges the provided options with the default options
 // and returns the merged options.
 // This allows the user to override the default options.
@@ -12,7 +20,7 @@ func mergeOptions(oldOptions LlmOptions, newOptions LlmOptions) LlmOptions {
 	options.ProviderOptions = oldOptions.ProviderOptions
 	options.ProjectID = oldOptions.ProjectID
 	options.Region = oldOptions.Region
-	options.Temperature = oldOptions.Temperature
+	options.Temperature = oldOptions.Temperature // may be nil
 	options.Verbose = oldOptions.Verbose
 	options.OutputFormat = oldOptions.OutputFormat
 	options.Logger = oldOptions.Logger
@@ -42,7 +50,7 @@ func mergeOptions(oldOptions LlmOptions, newOptions LlmOptions) LlmOptions {
 		options.Region = newOptions.Region
 	}
 
-	if newOptions.Temperature != 0 {
+	if newOptions.Temperature != nil {
 		options.Temperature = newOptions.Temperature
 	}
 

@@ -99,7 +99,7 @@ func (c *vertexLlmImpl) Generate(systemPrompt string, userMessage string, opts .
 	}
 
 	// Convert values to pointers for generation config
-	temp := float32(options.Temperature)
+	temp := float32(derefFloat64(options.Temperature, 0.7))
 	maxTokens := int32(options.MaxTokens)
 	candidateCount := int32(1)
 	topP := float32(0.8)
@@ -227,7 +227,7 @@ func (l *vertexLlmImpl) GenerateImage(prompt string, opts ...LlmOptions) ([]byte
 	model := client.GenerativeModel(GEMINI_MODEL_2_0_FLASH_EXP_IMAGE_GENERATION)
 
 	// Convert values to pointers for generation config
-	temp := float32(options.Temperature)
+	temp := float32(derefFloat64(options.Temperature, 0.7))
 	maxTokens := int32(options.MaxTokens)
 	candidateCount := int32(1)
 	topP := float32(0.8)

@@ -91,8 +91,8 @@ func (g *geminiImplementation) Generate(systemPrompt string, userMessage string,
 	if options.MaxTokens > 0 {
 		genConfig.MaxOutputTokens = int32(options.MaxTokens)
 	}
-	if options.Temperature > 0 {
-		genConfig.Temperature = genai.Ptr(float32(options.Temperature))
+	if options.Temperature != nil {
+		genConfig.Temperature = genai.Ptr(float32(*options.Temperature))
 	}
 
 	// Generate response

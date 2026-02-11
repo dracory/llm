@@ -62,7 +62,7 @@ func newCustomImplementation(options LlmOptions) (LlmInterface, error) {
 		endpointURL: endpointURL,
 		model:       model,
 		maxTokens:   options.MaxTokens,
-		temperature: options.Temperature,
+		temperature: derefFloat64(options.Temperature, 0.7),
 		verbose:     options.Verbose,
 		logger:      options.Logger,
 		httpClient:  client,
@@ -74,7 +74,7 @@ func (c *customImplementation) Generate(systemPrompt string, userMessage string,
 	merged := mergeOptions(LlmOptions{
 		Model:       c.model,
 		MaxTokens:   c.maxTokens,
-		Temperature: c.temperature,
+		Temperature: &c.temperature,
 		Verbose:     c.verbose,
 		ProviderOptions: map[string]any{
 			"url": c.endpointURL,
@@ -114,8 +114,8 @@ func (c *customImplementation) Generate(systemPrompt string, userMessage string,
 	}
 
 	temperature := c.temperature
-	if merged.Temperature > 0 {
-		temperature = merged.Temperature
+	if merged.Temperature != nil {
+		temperature = *merged.Temperature
 	}
 
 	responseFormat := "text"

@@ -237,7 +237,7 @@ func TestOptionsMerging(t *testing.T) {
 				if options.MaxTokens != 1000 {
 					return "", errors.New("MaxTokens not set correctly")
 				}
-				if options.Temperature != 0.5 {
+				if options.Temperature == nil || *options.Temperature != 0.5 {
 					return "", errors.New("Temperature not set correctly")
 				}
 				if options.Model != "test-model" {
@@ -253,7 +253,7 @@ func TestOptionsMerging(t *testing.T) {
 	llm, err := NewLLM(LlmOptions{
 		Provider:    customProvider,
 		MaxTokens:   500,             // This should be overridden
-		Temperature: 0.5,             // This should be used
+		Temperature: PtrFloat64(0.5), // This should be used
 		Model:       "default-model", // This should be overridden
 	})
 	if err != nil {

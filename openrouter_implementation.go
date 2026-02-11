@@ -54,7 +54,7 @@ func newOpenRouterImplementation(options LlmOptions) (LlmInterface, error) {
 		client:      client,
 		model:       model,
 		maxTokens:   o.MaxTokens,
-		temperature: o.Temperature,
+		temperature: derefFloat64(o.Temperature, 0.7),
 		verbose:     o.Verbose,
 		logger:      o.Logger,
 		apiKey:      apiKey,
@@ -81,8 +81,8 @@ func (o *openrouterImplementation) Generate(systemPrompt string, userMessage str
 	}
 
 	temperature := o.temperature
-	if options.Temperature > 0 {
-		temperature = options.Temperature
+	if options.Temperature != nil {
+		temperature = *options.Temperature
 	}
 
 	verbose := o.verbose

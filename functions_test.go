@@ -13,7 +13,7 @@ func TestMergeOptions(t *testing.T) {
 		ProviderOptions: map[string]any{"baseKey": "baseValue"},
 		ProjectID:       "base-project",
 		Region:          "base-region",
-		Temperature:     0.5,
+		Temperature:     PtrFloat64(0.5),
 		Verbose:         false,
 		OutputFormat:    OutputFormatText,
 	}
@@ -35,7 +35,7 @@ func TestMergeOptions(t *testing.T) {
 				ProviderOptions: map[string]any{"baseKey": "baseValue"},
 				ProjectID:       "base-project",
 				Region:          "base-region",
-				Temperature:     0.5,
+				Temperature:     PtrFloat64(0.5),
 				Verbose:         false,
 				OutputFormat:    OutputFormatText,
 			},
@@ -54,7 +54,7 @@ func TestMergeOptions(t *testing.T) {
 				ProviderOptions: map[string]any{"baseKey": "baseValue"},
 				ProjectID:       "base-project",
 				Region:          "base-region",
-				Temperature:     0.5,
+				Temperature:     PtrFloat64(0.5),
 				Verbose:         true, // Overridden
 				OutputFormat:    OutputFormatText,
 			},
@@ -68,7 +68,7 @@ func TestMergeOptions(t *testing.T) {
 				ProviderOptions: map[string]any{"newKey": "newValue"},
 				ProjectID:       "new-project",
 				Region:          "new-region",
-				Temperature:     0.9,
+				Temperature:     PtrFloat64(0.9),
 				Verbose:         true,
 				OutputFormat:    OutputFormatJSON,
 			},
@@ -78,7 +78,7 @@ func TestMergeOptions(t *testing.T) {
 				ProviderOptions: map[string]any{"newKey": "newValue"},
 				ProjectID:       "new-project",
 				Region:          "new-region",
-				Temperature:     0.9,
+				Temperature:     PtrFloat64(0.9),
 				Verbose:         true,
 				OutputFormat:    OutputFormatJSON,
 			},
@@ -95,20 +95,20 @@ func TestMergeOptions(t *testing.T) {
 				ProviderOptions: map[string]any{"anotherKey": 123}, // Overridden
 				ProjectID:       "base-project",
 				Region:          "base-region",
-				Temperature:     0.5,
+				Temperature:     PtrFloat64(0.5),
 				Verbose:         false,
 				OutputFormat:    OutputFormatText,
 			},
 		},
 		{
-			name:       "Override with zero values (except bool)",
+			name:       "Override with zero/nil values (except bool)",
 			oldOptions: baseOptions,
 			newOptions: LlmOptions{
 				Model:       "",    // Should not override
 				MaxTokens:   0,     // Should not override
 				ProjectID:   "",    // Should not override
 				Region:      "",    // Should not override
-				Temperature: 0,     // Should not override
+				Temperature: nil,   // Should not override
 				Verbose:     false, // Should not change from base false
 			},
 			wantOptions: LlmOptions{
@@ -117,7 +117,7 @@ func TestMergeOptions(t *testing.T) {
 				ProviderOptions: map[string]any{"baseKey": "baseValue"},
 				ProjectID:       "base-project",
 				Region:          "base-region",
-				Temperature:     0.5,
+				Temperature:     PtrFloat64(0.5),
 				Verbose:         false,
 				OutputFormat:    OutputFormatText,
 			},

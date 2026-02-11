@@ -162,7 +162,7 @@ func newAnthropicImplementation(options LlmOptions) (LlmInterface, error) {
 		apiKey:          options.ApiKey,
 		model:           model,
 		maxTokens:       options.MaxTokens,
-		temperature:     options.Temperature,
+		temperature:     derefFloat64(options.Temperature, 0.7),
 		verbose:         options.Verbose,
 		logger:          options.Logger,
 		providerOptions: options.ProviderOptions,
@@ -193,8 +193,8 @@ func (a *anthropicImplementation) Generate(systemPrompt string, userMessage stri
 	}
 
 	temperature := a.temperature
-	if options.Temperature > 0 {
-		temperature = options.Temperature
+	if options.Temperature != nil {
+		temperature = *options.Temperature
 	}
 
 	// Prepare request body

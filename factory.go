@@ -57,8 +57,8 @@ func createProvider(provider Provider, outputFormat OutputFormat, options LlmOpt
 		}
 	}
 
-	if options.Temperature == 0 {
-		options.Temperature = 0.7
+	if options.Temperature == nil {
+		options.Temperature = PtrFloat64(0.7)
 	}
 
 	if options.Region == "" && provider == ProviderVertex {

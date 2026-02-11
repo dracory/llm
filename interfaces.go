@@ -47,10 +47,11 @@ type LlmOptions struct {
 	// MaxTokens specifies the maximum number of tokens to generate
 	MaxTokens int
 
-	// Temperature controls the randomness of the response
+	// Temperature controls the randomness of the response.
 	// A higher temperature (e.g., 0.8) makes the output more random and creative,
 	// while a lower temperature (e.g., 0.2) makes the output more focused and deterministic.
-	Temperature float64
+	// Use PtrFloat64(0.7) to set, or leave nil to use the provider default.
+	Temperature *float64
 
 	// Verbose controls whether to log detailed information
 	Verbose bool
@@ -107,6 +108,12 @@ func NewLLM(options LlmOptions) (LlmInterface, error) {
 		return nil, err
 	}
 	return llm, nil
+}
+
+// PtrFloat64 returns a pointer to the given float64 value.
+// This is a convenience helper for setting Temperature in LlmOptions.
+func PtrFloat64(v float64) *float64 {
+	return &v
 }
 
 // init registers the built-in LLM providers

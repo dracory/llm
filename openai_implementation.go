@@ -39,7 +39,7 @@ func newOpenaiImplementation(options LlmOptions) (LlmInterface, error) {
 		client:      openai.NewClient(apiKey),
 		model:       model,
 		maxTokens:   o.MaxTokens,
-		temperature: o.Temperature,
+		temperature: derefFloat64(o.Temperature, 0.7),
 		verbose:     o.Verbose,
 		logger:      o.Logger,
 	}, nil
@@ -63,8 +63,8 @@ func (o *openaiImplementation) Generate(systemPrompt string, userMessage string,
 	}
 
 	temperature := o.temperature
-	if options.Temperature > 0 {
-		temperature = options.Temperature
+	if options.Temperature != nil {
+		temperature = *options.Temperature
 	}
 
 	// Configure response format based on output format
