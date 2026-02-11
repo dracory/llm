@@ -91,7 +91,7 @@ response, err := engine.GenerateText(
 engine, err := llm.JSONModel(llm.ProviderGemini, llm.LlmOptions{
     ApiKey:      os.Getenv("GEMINI_API_KEY"),
     Model:       "gemini-2.5-flash",
-    Temperature: 0.3,
+    Temperature: llm.PtrFloat64(0.3),
 })
 
 jsonResponse, err := engine.GenerateJSON(
@@ -144,7 +144,7 @@ engine, err := llm.TextModel(llm.ProviderVertex, llm.LlmOptions{
     Region:      "europe-west1",
     Model:       "gemini-2.5-flash",
     MaxTokens:   8192,
-    Temperature: 0.7,
+    Temperature: llm.PtrFloat64(0.7),
     ProviderOptions: map[string]any{
         "credentials_json": os.Getenv("VERTEXAI_CREDENTIALS_JSON"),
     },
@@ -172,7 +172,7 @@ response, err := engine.GenerateText(
     "Summarize this document: ...",
     llm.LlmOptions{
         MaxTokens:   2000,
-        Temperature: 0.2,
+        Temperature: llm.PtrFloat64(0.2),
     },
 )
 ```
@@ -210,7 +210,7 @@ type LlmInterface interface {
 | `Region` | `string` | GCP region (Vertex AI, defaults to `europe-west1`) |
 | `Model` | `string` | Model identifier |
 | `MaxTokens` | `int` | Maximum tokens to generate (default: 4096, Vertex: 8192) |
-| `Temperature` | `float64` | Randomness control, 0.0–1.0 (default: 0.7) |
+| `Temperature` | `*float64` | Randomness control, 0.0–1.0 (default: 0.7). Use `PtrFloat64(val)` to set; `nil` uses default. |
 | `Verbose` | `bool` | Enable verbose logging |
 | `Logger` | `*slog.Logger` | Structured logger for production use |
 | `OutputFormat` | `OutputFormat` | Output format (`text`, `json`, `xml`, `yaml`, `image/png`, `image/jpeg`) |
