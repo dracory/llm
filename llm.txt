@@ -1,78 +1,126 @@
-# LLM Package Documentation
+Package: github.com/dracory/llm
+Description: Unified Go library for integrating with multiple LLM providers.
 
-## Overview
-The LLM (Language Learning Model) package provides a unified interface for interacting with various AI language model providers in Go applications.
+== Providers ==
+- openai      (ProviderOpenAI)      — GPT-4, GPT-4 Turbo, etc. Requires ApiKey.
+- gemini      (ProviderGemini)      — Gemini 2.5 Flash/Pro via Gemini API. Requires ApiKey.
+- vertex      (ProviderVertex)      — Gemini models on Google Cloud. Requires ProjectID + Region.
+- anthropic   (ProviderAnthropic)   — Claude models. Requires ApiKey. Supports custom TLS/SPKI pinning.
+- openrouter  (ProviderOpenRouter)  — 50+ models via single API. Requires ApiKey.
+- custom      (ProviderCustom)      — Any OpenAI-compatible endpoint. Requires ProviderOptions["url"].
+- mock        (ProviderMock)        — Testing without API calls. Uses MockResponse field.
 
-## Supported Providers
-- OpenAI (GPT models)
-- Google Gemini
-- Google Vertex AI
-- Anthropic (Claude models)
-- Mock implementation for testing
+== Interface ==
+LlmInterface:
+  GenerateText(systemPrompt, userPrompt string, opts ...LlmOptions) (string, error)
+  GenerateJSON(systemPrompt, userPrompt string, opts ...LlmOptions) (string, error)
+  GenerateImage(prompt string, opts ...LlmOptions) ([]byte, error)
+  GenerateEmbedding(text string) ([]float32, error)
+  Generate(systemPrompt, userMessage string, opts ...LlmOptions) (string, error)  // DEPRECATED
 
-## Core Interface
-```go
-type LlmInterface interface {
-    GenerateText(systemPrompt, userPrompt string, options ...LlmOptions) (string, error)
-    GenerateJSON(systemPrompt, userPrompt string, options ...LlmOptions) (string, error)
-    GenerateImage(prompt string, options ...LlmOptions) ([]byte, error)
-    Generate(systemPrompt, userMessage string, options ...LlmOptions) (string, error) // Deprecated
-}
-```
+AgentInterface:
+  SetRole(role string)
+  GetRole() string
+  SetTask(task string)
+  GetTask() string
+  Execute() (string, error)
 
-## Configuration Options (LlmOptions)
-- `Provider`: LLM provider to use (Required)
-- `Model`: Specific model to use (Required for non-mock providers)
-- `ApiKey`: API key for the provider (Required for most providers)
-- `ProjectID`: Required for Vertex AI
-- `Region`: Region for the provider (default: "europe-west1" for Vertex)
-- `MaxTokens`: Maximum tokens to generate (default: 4096, 8192 for Vertex)
-- `Temperature`: Controls randomness (default: 0.7)
-- `Verbose`: Enable verbose logging
-- `OutputFormat`: Control output format
-- `MockResponse`: For testing with mock provider
+== LlmOptions ==
+  Provider         Provider         — Which provider to use
+  ApiKey           string           — API key for the provider
+  ProjectID        string           — GCP project ID (Vertex AI)
+  Region           string           — GCP region (Vertex AI, default: "europe-west1")
+  Model            string           — Model identifier
+  MaxTokens        int              — Max tokens to generate (default: 4096, Vertex: 8192)
+  Temperature      *float64         — Randomness 0.0-1.0 (default: 0.7). Use PtrFloat64(val) to set.
+                                      nil = use default; PtrFloat64(0) = deterministic.
+  Verbose          bool             — Enable verbose logging to stdout (fallback when Logger is nil)
+  Logger           *slog.Logger     — Structured logger; preferred over Verbose for production
+  OutputFormat     OutputFormat     — text, json, xml, yaml, enum, image/png, image/jpeg
+  ProviderOptions  map[string]any   — Provider-specific config (credentials, URLs, TLS, etc.)
+  MockResponse     string           — Canned response for mock provider (json:"-")
 
-## Factory Functions
-```go
-// Create a text generation model
-llm, err := TextModel(ProviderOpenAI)
+== Factory Functions ==
+  TextModel(provider, options)  — Creates LLM for text output
+  JSONModel(provider, options)  — Creates LLM for JSON output
+  ImageModel(provider, options) — Creates LLM for image generation
+  NewLLM(options)               — Low-level constructor
 
-// Create a JSON generation model
-llm, err := JSONModel(ProviderOpenAI)
+== Helper Functions ==
+  PtrFloat64(v float64) *float64           — Pointer helper for Temperature
+  CountTokens(text string) int             — Approximate token count
+  EstimateMaxTokens(prompt, window int) int — Estimate remaining tokens
+  RegisterProvider(provider, factory)       — Register a new provider
+  RegisterCustomProvider(name, factory)     — Register a custom provider by name
 
-// Create an image generation model
-llm, err := ImageModel(ProviderOpenAI)
-```
+== Output Formats ==
+  OutputFormatText      "text"
+  OutputFormatJSON      "json"
+  OutputFormatXML       "xml"
+  OutputFormatYAML      "yaml"
+  OutputFormatEnum      "enum"
+  OutputFormatImagePNG  "image/png"
+  OutputFormatImageJPG  "image/jpeg"
 
-## Example Usage
-```go
-// Create an LLM instance
-llm, err := TextModel(ProviderOpenAI)
-if err != nil {
-    log.Fatal(err)
-}
+== Files ==
+  interfaces.go                — LlmInterface, LlmOptions, LlmFactory, NewLLM, PtrFloat64, provider registry
+  constants.go                 — OutputFormat, Provider constants
+  factory.go                   — TextModel, JSONModel, ImageModel, createProvider with defaults
+  functions.go                 — mergeOptions, derefFloat64
+  agent_interface.go           — AgentInterface definition
+  tokens.go                    — CountTokens, EstimateMaxTokens
+  openai_implementation.go     — OpenAI provider (go-openai SDK)
+  gemini_implementation.go     — Gemini provider (google.golang.org/genai SDK)
+  vertex_implementation.go     — Vertex AI provider (cloud.google.com/go/vertexai/genai SDK)
+  anthropic_implementation.go  — Anthropic provider (custom HTTP with TLS/SPKI pinning)
+  openrouter_implementation.go — OpenRouter provider (OpenAI-compatible + custom image gen)
+  custom_implementation.go     — Custom OpenAI-compatible endpoint provider
+  mock_implementation.go       — Mock provider for testing
+  openrouter_models.go         — Pre-defined OpenRouter model constants
 
-// Generate text
-response, err := llm.GenerateText(
-    "You are a helpful assistant.",
-    "What is a contract?",
-)
-if err != nil {
-    log.Fatal(err)
-}
-fmt.Println(response)
-```
+== Logging ==
+All providers support structured logging via slog.Logger.
+Pattern: if logger != nil { logger.Level(...) } else if verbose { fmt.Printf(...) }
+slog logs metadata (model, lengths, errors) — never full prompt/response content.
+fmt.Printf fallback also avoids logging sensitive content (prompts, API keys).
 
-## Adding a Custom Provider
-1. Implement the `LlmInterface`
-2. Register the provider:
-   ```go
-   RegisterProvider("my-provider", func(options LlmOptions) (LlmInterface, error) {
-       return &MyProviderImplementation{options: options}, nil
-   })
-   ```
+== Provider-Specific Options ==
+Vertex AI:
+  ProviderOptions["credentials_json"] — string or []byte of service account JSON
+  ProviderOptions["credentials_file"] — path to service account JSON file
+  Env: VERTEXAI_CREDENTIALS_JSON, VERTEXAI_CREDENTIALS_FILE, GOOGLE_APPLICATION_CREDENTIALS
 
-## Testing
-- Uses standard Go testing package
-- Includes mock implementation for testing
-- Test coverage for core functionality
+Anthropic:
+  ProviderOptions["anthropic_root_ca_file"] or env ANTHROPIC_ROOT_CA_FILE
+  ProviderOptions["anthropic_root_ca_pem"]  or env ANTHROPIC_ROOT_CA_PEM
+  ProviderOptions["anthropic_spki_hash"]    or env ANTHROPIC_EXPECTED_SPKI_HASH
+
+Custom:
+  ProviderOptions["url"] or ["endpoint_url"] or ["base_url"] — endpoint URL (required)
+
+== Defaults Applied by createProvider ==
+  MaxTokens:   4096 (8192 for Vertex)
+  Temperature: PtrFloat64(0.7)
+  Region:      "europe-west1" (Vertex only)
+
+== Embedding Models ==
+  OpenAI:     Uses configured model, falls back to AdaEmbeddingV2
+  OpenRouter: Uses configured model, falls back to AdaEmbeddingV2 (skips "openrouter/auto")
+  Gemini:     Uses embedding-001 via REST API
+  Vertex:     Not supported (returns error)
+  Anthropic:  Not supported (returns error)
+
+== HTTP Client Policy ==
+  All providers use HTTP clients with 30-second timeouts.
+  Anthropic: Built once at construction with custom TLS config.
+  Gemini embedding: Dedicated http.Client with 30s timeout.
+  Custom: http.Client with 30s timeout.
+  All io.ReadAll calls use io.LimitReader (10 MB text, 100 MB images).
+
+== Testing ==
+  Mock provider returns MockResponse in priority order:
+    1. Per-call options MockResponse
+    2. Constructor options MockResponse
+    3. Empty string for empty user message
+  Run: go test ./...
+  Integration tests skip when API keys are not set.
