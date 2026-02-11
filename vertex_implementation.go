@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 
 	"cloud.google.com/go/vertexai/genai"
-	"github.com/mingrammer/cfmt"
 	"github.com/samber/lo"
 	"github.com/spf13/cast"
 	"google.golang.org/api/option"
@@ -64,8 +64,13 @@ func (c *vertexLlmImpl) Generate(systemPrompt string, userMessage string, opts .
 		return "", err
 	}
 	defer func() {
-		if cerr := client.Close(); cerr != nil && options.Verbose {
-			fmt.Printf("failed to close vertex client: %v\n", cerr)
+		if cerr := client.Close(); cerr != nil {
+			if options.Logger != nil {
+				options.Logger.Warn("failed to close vertex client",
+					slog.String("error", cerr.Error()))
+			} else if options.Verbose {
+				fmt.Printf("failed to close vertex client: %v\n", cerr)
+			}
 		}
 	}()
 
@@ -75,13 +80,14 @@ func (c *vertexLlmImpl) Generate(systemPrompt string, userMessage string, opts .
 		effectiveSystemPrompt += "\nYou must respond with a JSON object only. Do not include any text outside the JSON."
 	}
 
-	if options.Verbose {
-		if _, err := cfmt.Warningln("System prompt:", effectiveSystemPrompt); err != nil {
-			fmt.Printf("failed to log system prompt: %v\n", err)
-		}
-		if _, err := cfmt.Warningln("User message:", userMessage); err != nil {
-			fmt.Printf("failed to log user message: %v\n", err)
-		}
+	if options.Logger != nil {
+		options.Logger.Debug("Vertex AI request",
+			slog.String("model", options.Model),
+			slog.Int("system_prompt_len", len(effectiveSystemPrompt)),
+			slog.Int("user_message_len", len(userMessage)))
+	} else if options.Verbose {
+		fmt.Printf("Vertex AI system prompt: %s\n", effectiveSystemPrompt)
+		fmt.Printf("Vertex AI user message: %s\n", userMessage)
 	}
 
 	// For text-only input, use the gemini-pro model
@@ -201,18 +207,21 @@ func (l *vertexLlmImpl) GenerateImage(prompt string, opts ...LlmOptions) ([]byte
 		return nil, fmt.Errorf("failed to create genai client: %w", err)
 	}
 	defer func() {
-		if cerr := client.Close(); cerr != nil && options.Verbose {
-			fmt.Printf("failed to close vertex image client: %v\n", cerr)
+		if cerr := client.Close(); cerr != nil {
+			if options.Logger != nil {
+				options.Logger.Warn("failed to close vertex image client",
+					slog.String("error", cerr.Error()))
+			} else if options.Verbose {
+				fmt.Printf("failed to close vertex image client: %v\n", cerr)
+			}
 		}
 	}()
 
-	if options.Verbose {
-		if _, err := cfmt.Warningln("Using experimental image generation model"); err != nil {
-			fmt.Printf("failed to log experimental image generation notice: %v\n", err)
-		}
-		if _, err := cfmt.Warningln("Prompt:", prompt); err != nil {
-			fmt.Printf("failed to log prompt: %v\n", err)
-		}
+	if options.Logger != nil {
+		options.Logger.Debug("Using experimental image generation model",
+			slog.Int("prompt_len", len(prompt)))
+	} else if options.Verbose {
+		fmt.Printf("Vertex AI image generation: model=%s, prompt=%s\n", GEMINI_MODEL_2_0_FLASH_EXP_IMAGE_GENERATION, prompt)
 	}
 
 	model := client.GenerativeModel(GEMINI_MODEL_2_0_FLASH_EXP_IMAGE_GENERATION)

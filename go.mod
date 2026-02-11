@@ -4,7 +4,6 @@ go 1.25
 
 require (
 	cloud.google.com/go/vertexai v0.15.0
-	github.com/mingrammer/cfmt v1.1.0
 	github.com/samber/lo v1.52.0
 	github.com/sashabaranov/go-openai v1.41.2
 	github.com/spf13/cast v1.10.0
@@ -29,9 +28,6 @@ require (
 	github.com/googleapis/enterprise-certificate-proxy v0.3.12 // indirect
 	github.com/googleapis/gax-go/v2 v2.17.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
-	github.com/logrusorgru/aurora v2.0.3+incompatible // indirect
-	github.com/mattn/go-colorable v0.1.14 // indirect
-	github.com/mattn/go-isatty v0.0.20 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.65.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.65.0 // indirect

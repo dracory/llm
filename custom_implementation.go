@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -21,6 +22,7 @@ type customImplementation struct {
 	maxTokens   int
 	temperature float64
 	verbose     bool
+	logger      *slog.Logger
 	httpClient  *http.Client
 }
 
@@ -62,6 +64,7 @@ func newCustomImplementation(options LlmOptions) (LlmInterface, error) {
 		maxTokens:   options.MaxTokens,
 		temperature: options.Temperature,
 		verbose:     options.Verbose,
+		logger:      options.Logger,
 		httpClient:  client,
 	}, nil
 }

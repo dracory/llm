@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/samber/lo"
@@ -17,6 +18,7 @@ type openaiImplementation struct {
 	maxTokens   int
 	temperature float64
 	verbose     bool
+	logger      *slog.Logger
 }
 
 // newOpenaiImplementation creates a new OpenAI provider implementation
@@ -39,6 +41,7 @@ func newOpenaiImplementation(options LlmOptions) (LlmInterface, error) {
 		maxTokens:   o.MaxTokens,
 		temperature: o.Temperature,
 		verbose:     o.Verbose,
+		logger:      o.Logger,
 	}, nil
 }
 
@@ -93,7 +96,11 @@ func (o *openaiImplementation) Generate(systemPrompt string, userMessage string,
 	// Generate response
 	resp, err := o.client.CreateChatCompletion(ctx, req)
 	if err != nil {
-		if o.verbose {
+		if o.logger != nil {
+			o.logger.Error("OpenAI generation error",
+				slog.String("error", err.Error()),
+				slog.String("model", model))
+		} else if o.verbose {
 			fmt.Printf("OpenAI generation error: %v\n", err)
 		}
 		return "", err
@@ -150,7 +157,11 @@ func (o *openaiImplementation) GenerateImage(prompt string, opts ...LlmOptions) 
 
 	resp, err := o.client.CreateImage(ctx, req)
 	if err != nil {
-		if o.verbose {
+		if o.logger != nil {
+			o.logger.Error("OpenAI image generation error",
+				slog.String("error", err.Error()),
+				slog.String("model", model))
+		} else if o.verbose {
 			fmt.Printf("OpenAI image generation error: %v\n", err)
 		}
 		return nil, err
@@ -190,7 +201,10 @@ func (o *openaiImplementation) GenerateEmbedding(text string) ([]float32, error)
 
 	resp, err := o.client.CreateEmbeddings(ctx, req)
 	if err != nil {
-		if o.verbose {
+		if o.logger != nil {
+			o.logger.Error("OpenAI embedding generation error",
+				slog.String("error", err.Error()))
+		} else if o.verbose {
 			fmt.Printf("OpenAI embedding generation error: %v\n", err)
 		}
 		return nil, err

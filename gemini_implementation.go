@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -18,6 +19,7 @@ type geminiImplementation struct {
 	client     *genai.Client
 	model      string
 	verbose    bool
+	logger     *slog.Logger
 	apiKey     string
 	httpClient *http.Client
 }
@@ -35,7 +37,10 @@ func newGeminiImplementation(options LlmOptions) (LlmInterface, error) {
 	})
 
 	if err != nil {
-		if options.Verbose {
+		if options.Logger != nil {
+			options.Logger.Error("Failed to create Gemini client",
+				slog.String("error", err.Error()))
+		} else if options.Verbose {
 			fmt.Printf("Failed to create Gemini client: %v\n", err)
 		}
 		return nil, fmt.Errorf("failed to create Gemini client: %w", err)
@@ -51,6 +56,7 @@ func newGeminiImplementation(options LlmOptions) (LlmInterface, error) {
 		client:     client,
 		model:      modelName,
 		verbose:    options.Verbose,
+		logger:     options.Logger,
 		apiKey:     options.ApiKey,
 		httpClient: &http.Client{Timeout: 30 * time.Second},
 	}, nil
@@ -98,7 +104,11 @@ func (g *geminiImplementation) Generate(systemPrompt string, userMessage string,
 	)
 
 	if err != nil {
-		if g.verbose {
+		if g.logger != nil {
+			g.logger.Error("Gemini generation error",
+				slog.String("error", err.Error()),
+				slog.String("model", g.model))
+		} else if g.verbose {
 			fmt.Printf("Gemini generation error: %v\n", err)
 		}
 		return "", fmt.Errorf("failed to generate content: %w", err)

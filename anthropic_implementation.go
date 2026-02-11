@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"strings"
@@ -27,6 +28,7 @@ type anthropicImplementation struct {
 	maxTokens       int
 	temperature     float64
 	verbose         bool
+	logger          *slog.Logger
 	providerOptions map[string]any
 	httpClient      *http.Client
 }
@@ -162,6 +164,7 @@ func newAnthropicImplementation(options LlmOptions) (LlmInterface, error) {
 		maxTokens:       options.MaxTokens,
 		temperature:     options.Temperature,
 		verbose:         options.Verbose,
+		logger:          options.Logger,
 		providerOptions: options.ProviderOptions,
 		httpClient:      client,
 	}, nil
@@ -242,7 +245,10 @@ func (a *anthropicImplementation) Generate(systemPrompt string, userMessage stri
 	}
 	defer func() {
 		if cerr := resp.Body.Close(); cerr != nil {
-			if a.verbose {
+			if a.logger != nil {
+				a.logger.Warn("failed to close response body",
+					slog.String("error", cerr.Error()))
+			} else if a.verbose {
 				fmt.Printf("failed to close response body: %v\n", cerr)
 			}
 		}
@@ -308,7 +314,9 @@ func (a *anthropicImplementation) GenerateImage(prompt string, opts ...LlmOption
 	// options := lo.IfF(len(opts) > 0, func() LlmOptions { return opts[0] }).Else(LlmOptions{})
 
 	// Anthropic doesn't support image generation natively
-	if a.verbose {
+	if a.logger != nil {
+		a.logger.Warn("Image generation is not supported by Anthropic API")
+	} else if a.verbose {
 		fmt.Println("Image generation is not supported by Anthropic API")
 	}
 

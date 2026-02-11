@@ -98,11 +98,15 @@ func (o *openrouterImplementation) Generate(systemPrompt string, userMessage str
 		responseFormat.Type = openai.ChatCompletionResponseFormatTypeText
 	}
 
-	if verbose {
+	if o.logger != nil {
+		o.logger.Debug("OpenRouter request",
+			slog.String("model", model),
+			slog.Int("max_tokens", maxTokens),
+			slog.Float64("temperature", temperature),
+			slog.Int("system_prompt_len", len(systemPrompt)),
+			slog.Int("user_message_len", len(userMessage)))
+	} else if verbose {
 		fmt.Printf("OpenRouter request: model=%s, maxTokens=%d, temperature=%f\n", model, maxTokens, temperature)
-		fmt.Printf("Response format: %v\n", responseFormat)
-		fmt.Printf("System prompt: %s\n", systemPrompt)
-		fmt.Printf("User prompt: %s\n", userMessage)
 	}
 
 	// Create request
@@ -125,7 +129,7 @@ func (o *openrouterImplementation) Generate(systemPrompt string, userMessage str
 				slog.String("error", err.Error()),
 				slog.String("model", model),
 				slog.String("base_url", o.baseURL))
-		} else if o.verbose {
+		} else if verbose {
 			fmt.Printf("OpenRouter generation error: %v\n", err)
 		}
 		return "", err
@@ -135,7 +139,7 @@ func (o *openrouterImplementation) Generate(systemPrompt string, userMessage str
 		o.logger.Debug("OpenRouter response received",
 			slog.String("model", model))
 	} else if verbose {
-		fmt.Printf("OpenRouter response: %v\n", resp)
+		fmt.Printf("OpenRouter response received: model=%s\n", model)
 	}
 
 	if len(resp.Choices) == 0 {
@@ -143,7 +147,7 @@ func (o *openrouterImplementation) Generate(systemPrompt string, userMessage str
 			o.logger.Warn("no response from OpenRouter",
 				slog.String("model", model))
 		} else if verbose {
-			fmt.Printf("no response from OpenRouter\n")
+			fmt.Printf("no response from OpenRouter: model=%s\n", model)
 		}
 		return "", fmt.Errorf("no response from OpenRouter")
 	}
@@ -154,7 +158,7 @@ func (o *openrouterImplementation) Generate(systemPrompt string, userMessage str
 			slog.String("model", model),
 			slog.Int("length", len(response)))
 	} else if verbose {
-		fmt.Printf("OpenRouter response: %s\n", response)
+		fmt.Printf("OpenRouter response: length=%d\n", len(response))
 	}
 	return strings.TrimSpace(response), nil
 }
@@ -191,8 +195,12 @@ func (o *openrouterImplementation) GenerateImage(prompt string, opts ...LlmOptio
 		verbose = options.Verbose
 	}
 
-	if verbose {
-		fmt.Printf("OpenRouter image generation request: model=%s, prompt=%s\n", model, prompt)
+	if o.logger != nil {
+		o.logger.Debug("OpenRouter image generation request",
+			slog.String("model", model),
+			slog.Int("prompt_len", len(prompt)))
+	} else if verbose {
+		fmt.Printf("OpenRouter image generation request: model=%s\n", model)
 	}
 
 	// OpenRouter requires using chat completions with modalities for image generation
@@ -306,7 +314,10 @@ func (o *openrouterImplementation) GenerateImage(prompt string, opts ...LlmOptio
 		return nil, fmt.Errorf("failed to decode base64 image: %w", err)
 	}
 
-	if verbose {
+	if o.logger != nil {
+		o.logger.Debug("Successfully generated image",
+			slog.Int("bytes", len(imageBytes)))
+	} else if verbose {
 		fmt.Printf("Successfully generated image: %d bytes\n", len(imageBytes))
 	}
 
@@ -330,7 +341,10 @@ func (o *openrouterImplementation) GenerateEmbedding(text string) ([]float32, er
 
 	resp, err := o.client.CreateEmbeddings(ctx, req)
 	if err != nil {
-		if o.verbose {
+		if o.logger != nil {
+			o.logger.Error("OpenRouter embedding generation error",
+				slog.String("error", err.Error()))
+		} else if o.verbose {
 			fmt.Printf("OpenRouter embedding generation error: %v\n", err)
 		}
 		return nil, err
