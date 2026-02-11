@@ -123,13 +123,27 @@ func (o *openaiImplementation) GenerateJSON(systemPrompt string, userPrompt stri
 
 // GenerateImage implements LlmInterface
 func (o *openaiImplementation) GenerateImage(prompt string, opts ...LlmOptions) ([]byte, error) {
-	_ = lo.IfF(len(opts) > 0, func() LlmOptions { return opts[0] }).Else(LlmOptions{})
+	options := lo.IfF(len(opts) > 0, func() LlmOptions { return opts[0] }).Else(LlmOptions{})
 	ctx := context.Background()
 
-	// Use DALL-E model for image generation
+	// Determine image model from options or default
+	model := o.model
+	if options.Model != "" {
+		model = options.Model
+	}
+
+	// Determine image size from provider options or default
+	size := openai.CreateImageSize1024x1024
+	if options.ProviderOptions != nil {
+		if v, ok := options.ProviderOptions["image_size"].(string); ok && v != "" {
+			size = v
+		}
+	}
+
 	req := openai.ImageRequest{
+		Model:          model,
 		Prompt:         prompt,
-		Size:           openai.CreateImageSize1024x1024,
+		Size:           size,
 		N:              1,
 		ResponseFormat: openai.CreateImageResponseFormatB64JSON,
 	}
@@ -165,7 +179,7 @@ func (o *openaiImplementation) GenerateEmbedding(text string) ([]float32, error)
 
 	req := openai.EmbeddingRequest{
 		Input: []string{text},
-		Model: OPENROUTER_MODEL_QWEN_3_EMBEDDING_0_6B,
+		Model: openai.AdaEmbeddingV2,
 	}
 
 	resp, err := o.client.CreateEmbeddings(ctx, req)

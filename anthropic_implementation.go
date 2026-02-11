@@ -194,11 +194,8 @@ func (a *anthropicImplementation) Generate(systemPrompt string, userMessage stri
 		"model":       model,
 		"max_tokens":  maxTokens,
 		"temperature": temperature,
+		"system":      systemPrompt,
 		"messages": []map[string]string{
-			{
-				"role":    "system",
-				"content": systemPrompt,
-			},
 			{
 				"role":    "user",
 				"content": userMessage,
@@ -321,11 +318,4 @@ func (a *anthropicImplementation) GenerateImage(prompt string, opts ...LlmOption
 // GenerateEmbedding implements LlmInterface
 func (a *anthropicImplementation) GenerateEmbedding(text string) ([]float32, error) {
 	return nil, errors.New("not supported. change to openrouter")
-}
-
-func init() {
-	// Register Anthropic provider
-	RegisterProvider(ProviderAnthropic, func(options LlmOptions) (LlmInterface, error) {
-		return newAnthropicImplementation(options)
-	})
 }

@@ -8,14 +8,16 @@ import (
 // TestProviderRegistry tests the provider registration and factory system
 func TestProviderRegistry(t *testing.T) {
 	// Clear existing providers for this test
+	providerMu.Lock()
 	originalProviders := providerFactories
+	providerFactories = make(map[Provider]LlmFactory)
+	providerMu.Unlock()
 	defer func() {
 		// Restore original providers after test
+		providerMu.Lock()
 		providerFactories = originalProviders
+		providerMu.Unlock()
 	}()
-
-	// Start with a clean registry
-	providerFactories = make(map[Provider]LlmFactory)
 
 	// Register a test provider
 	testProvider := Provider("test-provider")
@@ -24,7 +26,10 @@ func TestProviderRegistry(t *testing.T) {
 	})
 
 	// Check if provider was registered
-	if _, exists := providerFactories[testProvider]; !exists {
+	providerMu.RLock()
+	_, exists := providerFactories[testProvider]
+	providerMu.RUnlock()
+	if !exists {
 		t.Errorf("Provider was not registered correctly")
 	}
 

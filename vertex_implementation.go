@@ -69,13 +69,11 @@ func (c *vertexLlmImpl) Generate(systemPrompt string, userMessage string, opts .
 		}
 	}()
 
-	systemMessage := "Hi. I'll explain how you should behave:\n" + systemPrompt
-
 	var final string
 	if options.OutputFormat == OutputFormatJSON {
-		final = systemMessage + "\n\nUSER:" + userMessage + "\n\nYou must respond with a JSON object only. Do not include any text outside the JSON."
+		final = systemPrompt + "\n\nUSER:" + userMessage + "\n\nYou must respond with a JSON object only. Do not include any text outside the JSON."
 	} else {
-		final = systemMessage + "\n\nUSER:" + userMessage + "\n\nDo not use markdown."
+		final = systemPrompt + "\n\nUSER:" + userMessage
 	}
 
 	if options.Verbose {
@@ -147,7 +145,7 @@ func (c *vertexLlmImpl) Generate(systemPrompt string, userMessage string, opts .
 
 	// Parse response
 	if len(resp.Candidates) == 0 || len(resp.Candidates[0].Content.Parts) != 1 {
-		return "", err
+		return "", fmt.Errorf("unexpected vertex response: no candidates or unexpected parts count")
 	}
 
 	str := cast.ToString(resp.Candidates[0].Content.Parts[0])

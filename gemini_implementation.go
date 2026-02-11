@@ -61,44 +61,36 @@ func (g *geminiImplementation) Generate(systemPrompt string, userMessage string,
 		return "", fmt.Errorf("gemini client not initialized")
 	}
 
-	// Prepare the prompt with system and user message
-	prompt := systemPrompt
-	if userMessage != "" {
-		prompt += "\n\n" + userMessage
-	}
-
-	// Add format instructions if needed
-	if options.OutputFormat == OutputFormatJSON {
-		prompt += "\nYou must respond with valid JSON only. Do not include any text outside the JSON."
-	}
-
-	// Create a text part with the prompt
-	textPart := &genai.Part{
-		Text: prompt,
-	}
-
-	// Create content with the text part
-	content := &genai.Content{
+	// Prepare user message content
+	userContent := &genai.Content{
 		Role:  "user",
-		Parts: []*genai.Part{textPart},
+		Parts: []*genai.Part{{Text: userMessage}},
 	}
 
-	// Prepare generation config if needed
-	var genConfig *genai.GenerateContentConfig
-	if options.MaxTokens > 0 || options.Temperature > 0 {
-		genConfig = &genai.GenerateContentConfig{
-			MaxOutputTokens: int32(options.MaxTokens),
-		}
-		if options.Temperature > 0 {
-			genConfig.Temperature = genai.Ptr(float32(options.Temperature))
-		}
+	// Prepare system instruction
+	effectiveSystemPrompt := systemPrompt
+	if options.OutputFormat == OutputFormatJSON {
+		effectiveSystemPrompt += "\nYou must respond with valid JSON only. Do not include any text outside the JSON."
+	}
+
+	// Prepare generation config
+	genConfig := &genai.GenerateContentConfig{
+		SystemInstruction: &genai.Content{
+			Parts: []*genai.Part{{Text: effectiveSystemPrompt}},
+		},
+	}
+	if options.MaxTokens > 0 {
+		genConfig.MaxOutputTokens = int32(options.MaxTokens)
+	}
+	if options.Temperature > 0 {
+		genConfig.Temperature = genai.Ptr(float32(options.Temperature))
 	}
 
 	// Generate response
 	resp, err := g.client.Models.GenerateContent(
 		context.Background(),
 		g.model,
-		[]*genai.Content{content},
+		[]*genai.Content{userContent},
 		genConfig,
 	)
 
@@ -154,60 +146,60 @@ func (g *geminiImplementation) GenerateImage(prompt string, opts ...LlmOptions) 
 // GenerateEmbedding generates embeddings for the given text
 func (g *geminiImplementation) GenerateEmbedding(text string) ([]float32, error) {
 	ctx := context.Background()
-	
+
 	// Gemini requires a custom HTTP request for embeddings
 	reqBody := map[string]interface{}{
 		"model": "models/embedding-001",
-		"text": text,
+		"text":  text,
 	}
-	
+
 	reqJSON, err := json.Marshal(reqBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
-	
+
 	req, err := http.NewRequestWithContext(ctx, "POST", "https://generativelanguage.googleapis.com/v1beta/models/embedding-001:embedContent", bytes.NewReader(reqJSON))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
-	
+
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("x-goog-api-key", g.apiKey)
-	
+
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("embedding request failed with status %d: %s", resp.StatusCode, string(body))
 	}
-	
+
 	var result struct {
 		Embedding struct {
 			Value []float64 `json:"value"`
 		} `json:"embedding"`
 	}
-	
+
 	if err := json.Unmarshal(body, &result); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
-	
+
 	if len(result.Embedding.Value) == 0 {
 		return nil, fmt.Errorf("no embeddings generated")
 	}
-	
+
 	// Convert float64 to float32
 	embeddings := make([]float32, len(result.Embedding.Value))
 	for i, v := range result.Embedding.Value {
 		embeddings[i] = float32(v)
 	}
-	
+
 	return embeddings, nil
 }

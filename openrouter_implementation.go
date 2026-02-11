@@ -228,14 +228,7 @@ func (o *openrouterImplementation) GenerateImage(prompt string, opts ...LlmOptio
 	req.Header.Set("Authorization", "Bearer "+o.apiKey)
 	req.Header.Set("Content-Type", "application/json")
 
-	httpClient := &http.Client{}
-	if o.httpClient != nil {
-		if client, ok := o.httpClient.(*http.Client); ok {
-			httpClient = client
-		}
-	}
-
-	resp, err := httpClient.Do(req)
+	resp, err := o.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request: %w", err)
 	}

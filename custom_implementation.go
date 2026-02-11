@@ -217,12 +217,11 @@ func (c *customImplementation) GenerateJSON(systemPrompt string, userPrompt stri
 }
 
 func (c *customImplementation) GenerateImage(prompt string, opts ...LlmOptions) ([]byte, error) {
-	_ = lo.IfF(len(opts) > 0, func() LlmOptions { return opts[0] }).Else(LlmOptions{})
-	return nil, nil
+	return nil, fmt.Errorf("image generation not supported by custom provider")
 }
 
 func (c *customImplementation) GenerateEmbedding(text string) ([]float32, error) {
-	return []float32{}, nil
+	return nil, fmt.Errorf("embedding generation not supported by custom provider")
 }
 
 // Optional helper for providers that return base64-encoded images in their content.

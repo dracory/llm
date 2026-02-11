@@ -3,6 +3,7 @@ package llm
 import (
 	"fmt"
 	"log/slog"
+	"sync"
 )
 
 // LlmInterface is an interface for making LLM API calls
@@ -69,12 +70,16 @@ type LlmOptions struct {
 type LlmFactory func(options LlmOptions) (LlmInterface, error)
 
 var (
+	// providerMu protects providerFactories from concurrent access
+	providerMu sync.RWMutex
 	// providerFactories maps provider names to their factory functions
 	providerFactories = make(map[Provider]LlmFactory)
 )
 
 // RegisterProvider registers a new LLM provider factory
 func RegisterProvider(provider Provider, factory LlmFactory) {
+	providerMu.Lock()
+	defer providerMu.Unlock()
 	providerFactories[provider] = factory
 }
 
@@ -90,7 +95,9 @@ func NewLLM(options LlmOptions) (LlmInterface, error) {
 		options.Provider = ProviderOpenAI
 	}
 
+	providerMu.RLock()
 	factory, exists := providerFactories[options.Provider]
+	providerMu.RUnlock()
 	if !exists {
 		return nil, fmt.Errorf("unsupported LLM provider: %s", options.Provider)
 	}

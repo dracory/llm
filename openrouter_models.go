@@ -112,9 +112,9 @@ const OPENROUTER_MODEL_MISTRAL_NEMO = "mistralai/mistral-nemo"
 // Input $0.40/M Output $2/M Context 131,072
 const OPENROUTER_MODEL_MISTRAL_MEDIUM_3_1 = "mistralai/mistral-medium-3.1"
 
-// Mistral Devstral 2 2512
+// Mistral Devstral 2512
 // Input $0.05/M Output $0.22/M Context 262,144
-const OPENROUTER_MODEL_DEVSTRAL_2_2512 = "mistralai/devstral-2512"
+const OPENROUTER_MODEL_DEVSTRAL_2512 = "mistralai/devstral-2512"
 
 // ===========================================================================//
 // Qwen Models

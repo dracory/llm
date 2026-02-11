@@ -5,6 +5,8 @@ package llm
 // This allows the user to override the default options.
 func mergeOptions(oldOptions LlmOptions, newOptions LlmOptions) LlmOptions {
 	options := LlmOptions{}
+	options.Provider = oldOptions.Provider
+	options.ApiKey = oldOptions.ApiKey
 	options.Model = oldOptions.Model
 	options.MaxTokens = oldOptions.MaxTokens
 	options.ProviderOptions = oldOptions.ProviderOptions
@@ -13,6 +15,16 @@ func mergeOptions(oldOptions LlmOptions, newOptions LlmOptions) LlmOptions {
 	options.Temperature = oldOptions.Temperature
 	options.Verbose = oldOptions.Verbose
 	options.OutputFormat = oldOptions.OutputFormat
+	options.Logger = oldOptions.Logger
+	options.MockResponse = oldOptions.MockResponse
+
+	if newOptions.Provider != "" {
+		options.Provider = newOptions.Provider
+	}
+
+	if newOptions.ApiKey != "" {
+		options.ApiKey = newOptions.ApiKey
+	}
 
 	if newOptions.Model != "" {
 		options.Model = newOptions.Model
@@ -34,8 +46,10 @@ func mergeOptions(oldOptions LlmOptions, newOptions LlmOptions) LlmOptions {
 		options.Temperature = newOptions.Temperature
 	}
 
+	// Verbose can only be turned on via merge, not turned off,
+	// because the zero value (false) is indistinguishable from "not set".
 	if newOptions.Verbose {
-		options.Verbose = newOptions.Verbose
+		options.Verbose = true
 	}
 
 	if newOptions.OutputFormat != "" {
@@ -44,6 +58,14 @@ func mergeOptions(oldOptions LlmOptions, newOptions LlmOptions) LlmOptions {
 
 	if newOptions.ProviderOptions != nil {
 		options.ProviderOptions = newOptions.ProviderOptions
+	}
+
+	if newOptions.Logger != nil {
+		options.Logger = newOptions.Logger
+	}
+
+	if newOptions.MockResponse != "" {
+		options.MockResponse = newOptions.MockResponse
 	}
 
 	return options

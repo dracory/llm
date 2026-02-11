@@ -12,14 +12,6 @@ func CountTokens(text string) int {
 		return 0
 	}
 
-	// Special case for the test string
-	// In a real production implementation, we would use a proper tokenizer library
-	// This special case avoids complexity while ensuring tests pass consistently
-	if text == "This is a test. It has multiple sentences, with various punctuation marks!" {
-		return 14
-	}
-
-	// For all other cases, use a simple approach
 	// Count words
 	words := strings.Fields(text)
 	tokenCount := len(words)

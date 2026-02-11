@@ -31,7 +31,7 @@ func TestCountTokens(t *testing.T) {
 		{
 			name:     "complex sentence",
 			text:     "This is a test. It has multiple sentences, with various punctuation marks!",
-			expected: 14, // 11 words + 3 punctuation marks
+			expected: 15, // 12 words + 3 punctuation marks (. , !)
 		},
 	}
 
