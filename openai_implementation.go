@@ -63,24 +63,18 @@ func (o *openaiImplementation) Generate(systemPrompt string, userMessage string,
 	}
 	merged := mergeOptions(o.baseOptions(), perCall)
 
-	ctx := context.Background()
+	ctx := merged.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
 
 	model := merged.Model
 	maxTokens := merged.MaxTokens
 	temperature := derefFloat64(merged.Temperature, o.temperature)
 
-	// Configure response format based on output format
-	responseFormat := &openai.ChatCompletionResponseFormat{}
-	if merged.OutputFormat == OutputFormatJSON {
-		responseFormat.Type = openai.ChatCompletionResponseFormatTypeJSONObject
-	} else {
-		responseFormat.Type = openai.ChatCompletionResponseFormatTypeText
-	}
-
 	// Create request
 	req := openai.ChatCompletionRequest{
-		Model:          model,
-		ResponseFormat: responseFormat,
+		Model: model,
 		Messages: []openai.ChatCompletionMessage{
 			{
 				Role:    openai.ChatMessageRoleSystem,
@@ -93,6 +87,17 @@ func (o *openaiImplementation) Generate(systemPrompt string, userMessage string,
 		},
 		MaxTokens:   maxTokens,
 		Temperature: float32(temperature),
+	}
+
+	// Configure response format based on output format, unless disabled.
+	if !merged.DisableResponseFormat {
+		responseFormat := &openai.ChatCompletionResponseFormat{}
+		if merged.OutputFormat == OutputFormatJSON {
+			responseFormat.Type = openai.ChatCompletionResponseFormatTypeJSONObject
+		} else {
+			responseFormat.Type = openai.ChatCompletionResponseFormatTypeText
+		}
+		req.ResponseFormat = responseFormat
 	}
 
 	// Generate response
@@ -143,7 +148,10 @@ func (o *openaiImplementation) GenerateImage(prompt string, opts ...LlmOptions) 
 		perCall = opts[0]
 	}
 	merged := mergeOptions(o.baseOptions(), perCall)
-	ctx := context.Background()
+	ctx := merged.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
 
 	model := merged.Model
 
@@ -195,7 +203,6 @@ func (o *openaiImplementation) GenerateImage(prompt string, opts ...LlmOptions) 
 // GenerateEmbedding implements LlmInterface
 func (o *openaiImplementation) GenerateEmbedding(text string) ([]float32, error) {
 	ctx := context.Background()
-
 	// Use the configured model if set, otherwise fall back to Ada
 	embeddingModel := openai.EmbeddingModel(o.model)
 	if o.model == "" {

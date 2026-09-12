@@ -193,7 +193,10 @@ func (a *anthropicImplementation) Generate(systemPrompt string, userMessage stri
 		return "", fmt.Errorf("anthropic api key not provided")
 	}
 
-	ctx := context.Background()
+	ctx := merged.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
 
 	model := merged.Model
 	maxTokens := merged.MaxTokens
@@ -213,8 +216,8 @@ func (a *anthropicImplementation) Generate(systemPrompt string, userMessage stri
 		},
 	}
 
-	// Add response format if JSON is requested
-	if merged.OutputFormat == OutputFormatJSON {
+	// Add response format if JSON is requested and not disabled
+	if merged.OutputFormat == OutputFormatJSON && !merged.DisableResponseFormat {
 		requestBody["response_format"] = map[string]string{
 			"type": "json_object",
 		}

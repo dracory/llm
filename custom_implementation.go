@@ -140,9 +140,12 @@ func (c *customImplementation) Generate(systemPrompt string, userMessage string,
 		},
 		MaxTokens:   maxTokens,
 		Temperature: temperature,
-		ResponseFormat: map[string]any{
+	}
+
+	if !merged.DisableResponseFormat {
+		body.ResponseFormat = map[string]any{
 			"type": responseFormat,
-		},
+		}
 	}
 
 	payload, err := json.Marshal(body)
@@ -150,7 +153,10 @@ func (c *customImplementation) Generate(systemPrompt string, userMessage string,
 		return "", fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	ctx := context.Background()
+	ctx := merged.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpointURL, bytes.NewReader(payload))
 	if err != nil {
 		return "", fmt.Errorf("failed to create request: %w", err)

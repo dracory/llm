@@ -1,6 +1,7 @@
 package llm
 
 import (
+	"context"
 	"errors"
 	"testing"
 )
@@ -298,5 +299,143 @@ func TestOutputFormats(t *testing.T) {
 	_, err = mockLLM.GenerateImage("test", LlmOptions{OutputFormat: OutputFormatImagePNG})
 	if err != nil {
 		t.Errorf("GenerateImage failed: %v", err)
+	}
+}
+
+// TestMockError tests that the mock implementation returns MockError when set.
+func TestMockError(t *testing.T) {
+	sentinel := errors.New("api down")
+
+	// Client-level MockError
+	mockLLM, _ := newMockImplementation(LlmOptions{
+		MockError: sentinel,
+	})
+
+	_, err := mockLLM.Generate("sys", "user")
+	if !errors.Is(err, sentinel) {
+		t.Errorf("client-level MockError not returned: got %v, want %v", err, sentinel)
+	}
+
+	_, err = mockLLM.GenerateJSON("sys", "user")
+	if !errors.Is(err, sentinel) {
+		t.Errorf("client-level MockError not returned via GenerateJSON: got %v", err)
+	}
+
+	_, err = mockLLM.GenerateImage("prompt")
+	if !errors.Is(err, sentinel) {
+		t.Errorf("client-level MockError not returned via GenerateImage: got %v", err)
+	}
+
+	// Per-call MockError overrides client-level MockResponse
+	mockLLM2, _ := newMockImplementation(LlmOptions{
+		MockResponse: "ok",
+	})
+	_, err = mockLLM2.Generate("sys", "user", LlmOptions{MockError: sentinel})
+	if !errors.Is(err, sentinel) {
+		t.Errorf("per-call MockError did not take precedence: got %v", err)
+	}
+
+	// Per-call MockError overrides client-level MockError
+	other := errors.New("different")
+	mockLLM3, _ := newMockImplementation(LlmOptions{
+		MockError: sentinel,
+	})
+	_, err = mockLLM3.Generate("sys", "user", LlmOptions{MockError: other})
+	if !errors.Is(err, other) {
+		t.Errorf("per-call MockError did not override client-level: got %v", err)
+	}
+}
+
+// TestMockCalls tests call recording via MockInterface.
+func TestMockCalls(t *testing.T) {
+	raw, _ := newMockImplementation(LlmOptions{
+		MockResponse: "resp",
+	})
+	mockLLM := raw.(MockInterface)
+
+	// No calls initially
+	calls := mockLLM.Calls()
+	if len(calls) != 0 {
+		t.Fatalf("expected 0 calls, got %d", len(calls))
+	}
+
+	_, _ = mockLLM.Generate("sys1", "user1")
+	_, _ = mockLLM.GenerateText("sys2", "user2")
+	_, _ = mockLLM.GenerateJSON("sys3", "user3")
+
+	calls = mockLLM.Calls()
+	if len(calls) != 3 {
+		t.Fatalf("expected 3 calls, got %d", len(calls))
+	}
+
+	if calls[0].Method != "Generate" || calls[0].SystemPrompt != "sys1" || calls[0].UserPrompt != "user1" {
+		t.Errorf("call 0 mismatch: %+v", calls[0])
+	}
+	if calls[1].Method != "Generate" || calls[1].SystemPrompt != "sys2" {
+		t.Errorf("call 1 (GenerateText) should record Generate method: %+v", calls[1])
+	}
+	if calls[2].Method != "Generate" || calls[2].SystemPrompt != "sys3" {
+		t.Errorf("call 2 (GenerateJSON) should record Generate method: %+v", calls[2])
+	}
+
+	// Reset clears calls
+	mockLLM.Reset()
+	if len(mockLLM.Calls()) != 0 {
+		t.Errorf("Reset did not clear calls")
+	}
+}
+
+// TestMockInterfaceAssertion tests that the mock implementation satisfies MockInterface.
+func TestMockInterfaceAssertion(t *testing.T) {
+	mockLLM, _ := newMockImplementation(LlmOptions{})
+
+	if _, ok := mockLLM.(MockInterface); !ok {
+		t.Errorf("mock implementation does not satisfy MockInterface")
+	}
+}
+
+// TestContextPropagation tests that Context in LlmOptions is merged correctly.
+func TestContextPropagation(t *testing.T) {
+	ctx := context.Background()
+
+	merged := mergeOptions(LlmOptions{}, LlmOptions{Context: ctx})
+	if merged.Context != ctx {
+		t.Errorf("Context not merged from per-call options")
+	}
+
+	// Client-level context preserved when per-call is nil
+	merged = mergeOptions(LlmOptions{Context: ctx}, LlmOptions{})
+	if merged.Context != ctx {
+		t.Errorf("client-level Context not preserved")
+	}
+}
+
+// TestDisableResponseFormatMerge tests that DisableResponseFormat merges correctly.
+func TestDisableResponseFormatMerge(t *testing.T) {
+	// Per-call true overrides
+	merged := mergeOptions(LlmOptions{}, LlmOptions{DisableResponseFormat: true})
+	if !merged.DisableResponseFormat {
+		t.Errorf("DisableResponseFormat not merged from per-call")
+	}
+
+	// Client-level true preserved
+	merged = mergeOptions(LlmOptions{DisableResponseFormat: true}, LlmOptions{})
+	if !merged.DisableResponseFormat {
+		t.Errorf("client-level DisableResponseFormat not preserved")
+	}
+}
+
+// TestMockErrorMerge tests that MockError merges correctly.
+func TestMockErrorMerge(t *testing.T) {
+	sentinel := errors.New("err")
+
+	merged := mergeOptions(LlmOptions{}, LlmOptions{MockError: sentinel})
+	if merged.MockError != sentinel {
+		t.Errorf("MockError not merged from per-call")
+	}
+
+	merged = mergeOptions(LlmOptions{MockError: sentinel}, LlmOptions{})
+	if merged.MockError != sentinel {
+		t.Errorf("client-level MockError not preserved")
 	}
 }

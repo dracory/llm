@@ -88,6 +88,11 @@ func (g *geminiImplementation) Generate(systemPrompt string, userMessage string,
 		return "", fmt.Errorf("gemini client not initialized")
 	}
 
+	ctx := merged.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	// Prepare user message content
 	userContent := &genai.Content{
 		Role:  "user",
@@ -115,7 +120,7 @@ func (g *geminiImplementation) Generate(systemPrompt string, userMessage string,
 
 	// Generate response
 	resp, err := g.client.Models.GenerateContent(
-		context.Background(),
+		ctx,
 		g.model,
 		[]*genai.Content{userContent},
 		genConfig,

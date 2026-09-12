@@ -55,7 +55,10 @@ func (c *vertexLlmImpl) Generate(systemPrompt string, userMessage string, opts .
 		return "", errors.New("region is required")
 	}
 
-	ctx := context.Background()
+	ctx := options.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	clientOptions, err := buildVertexClientOptions(options)
 	if err != nil {
 		return "", err
@@ -207,7 +210,10 @@ func (l *vertexLlmImpl) GenerateImage(prompt string, opts ...LlmOptions) ([]byte
 		return nil, errors.New("region is required")
 	}
 
-	ctx := context.Background()
+	ctx := options.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	clientOptions, err := buildVertexClientOptions(options)
 	if err != nil {
 		return nil, err

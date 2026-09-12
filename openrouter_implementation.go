@@ -42,7 +42,31 @@ func newOpenRouterImplementation(options LlmOptions) (LlmInterface, error) {
 		model = "openrouter/auto"
 	}
 
+	// Base URL: defaults to the public OpenRouter endpoint, but may be
+	// overridden via ProviderOptions["base_url"] (also accepts "url" or
+	// "endpoint_url") for proxies, gateways, or local test servers.
 	baseURL := "https://openrouter.ai/api/v1"
+	if o.ProviderOptions != nil {
+		if v, ok := o.ProviderOptions["base_url"].(string); ok {
+			if s := strings.TrimSpace(v); s != "" {
+				baseURL = s
+			}
+		}
+		if baseURL == "https://openrouter.ai/api/v1" {
+			if v, ok := o.ProviderOptions["url"].(string); ok {
+				if s := strings.TrimSpace(v); s != "" {
+					baseURL = s
+				}
+			}
+		}
+		if baseURL == "https://openrouter.ai/api/v1" {
+			if v, ok := o.ProviderOptions["endpoint_url"].(string); ok {
+				if s := strings.TrimSpace(v); s != "" {
+					baseURL = s
+				}
+			}
+		}
+	}
 
 	cfg := openai.DefaultConfig(apiKey)
 	cfg.BaseURL = baseURL
@@ -81,19 +105,38 @@ func (o *openrouterImplementation) Generate(systemPrompt string, userMessage str
 	}
 	merged := mergeOptions(o.baseOptions(), perCall)
 
-	ctx := context.Background()
+	ctx := merged.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
 
 	model := merged.Model
 	maxTokens := merged.MaxTokens
 	temperature := derefFloat64(merged.Temperature, o.temperature)
 	verbose := merged.Verbose
 
-	// Configure response format based on output format
-	responseFormat := &openai.ChatCompletionResponseFormat{}
-	if merged.OutputFormat == OutputFormatJSON {
-		responseFormat.Type = openai.ChatCompletionResponseFormatTypeJSONObject
-	} else {
-		responseFormat.Type = openai.ChatCompletionResponseFormatTypeText
+	// Create request
+	req := openai.ChatCompletionRequest{
+		Model: model,
+		Messages: []openai.ChatCompletionMessage{
+			{Role: openai.ChatMessageRoleSystem, Content: systemPrompt},
+			{Role: openai.ChatMessageRoleUser, Content: userMessage},
+		},
+		MaxTokens:   maxTokens,
+		Temperature: float32(temperature),
+	}
+
+	// Configure response format based on output format, unless the caller
+	// explicitly disabled it (some OpenRouter providers reject the
+	// response_format field for certain models).
+	if !merged.DisableResponseFormat {
+		responseFormat := &openai.ChatCompletionResponseFormat{}
+		if merged.OutputFormat == OutputFormatJSON {
+			responseFormat.Type = openai.ChatCompletionResponseFormatTypeJSONObject
+		} else {
+			responseFormat.Type = openai.ChatCompletionResponseFormatTypeText
+		}
+		req.ResponseFormat = responseFormat
 	}
 
 	if o.logger != nil {
@@ -105,18 +148,6 @@ func (o *openrouterImplementation) Generate(systemPrompt string, userMessage str
 			slog.Int("user_message_len", len(userMessage)))
 	} else if verbose {
 		fmt.Printf("OpenRouter request: model=%s, maxTokens=%d, temperature=%f\n", model, maxTokens, temperature)
-	}
-
-	// Create request
-	req := openai.ChatCompletionRequest{
-		Model:          model,
-		ResponseFormat: responseFormat,
-		Messages: []openai.ChatCompletionMessage{
-			{Role: openai.ChatMessageRoleSystem, Content: systemPrompt},
-			{Role: openai.ChatMessageRoleUser, Content: userMessage},
-		},
-		MaxTokens:   maxTokens,
-		Temperature: float32(temperature),
 	}
 
 	// Generate response

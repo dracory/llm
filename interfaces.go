@@ -1,6 +1,7 @@
 package llm
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -31,6 +32,22 @@ type LlmOptions struct {
 	// MockResponse, if not empty, will be returned by the mock implementation
 	// instead of making an actual API call. This is useful for testing.
 	MockResponse string `json:"-"`
+
+	// MockError, if not nil, will be returned by the mock implementation
+	// instead of making an actual API call. This is useful for testing
+	// failure paths. MockError takes precedence over MockResponse.
+	MockError error `json:"-"`
+
+	// Context, if not nil, will be used for the API call, allowing callers
+	// to cancel in-flight requests or apply deadlines. When nil,
+	// context.Background() is used.
+	Context context.Context `json:"-"`
+
+	// DisableResponseFormat, when true, prevents the provider from sending
+	// a response_format parameter. Useful for providers/models that reject
+	// structured-output requests (e.g. some OpenRouter routes for
+	// GenerateJSON).
+	DisableResponseFormat bool
 
 	// ApiKey specifies the API key for the LLM provider
 	ApiKey string
@@ -64,6 +81,30 @@ type LlmOptions struct {
 
 	// Additional options specific to the LLM provider
 	ProviderOptions map[string]any
+}
+
+// MockCall records a single call made to the mock implementation.
+type MockCall struct {
+	Method       string // e.g. "Generate", "GenerateText", "GenerateJSON"
+	SystemPrompt string
+	UserPrompt   string
+	Options      LlmOptions
+}
+
+// MockInterface is implemented by the mock provider. It extends LlmInterface
+// with introspection so tests can assert which calls were made. Obtain it via
+// a type assertion on the LlmInterface returned by the factory:
+//
+//	mock, ok := engine.(llm.MockInterface)
+//	if ok { _ = mock.Calls() }
+type MockInterface interface {
+	LlmInterface
+
+	// Calls returns a copy of all recorded calls in invocation order.
+	Calls() []MockCall
+
+	// Reset clears the recorded call history.
+	Reset()
 }
 
 // LlmFactory is a function type that creates a new LLM instance
