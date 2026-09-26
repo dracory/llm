@@ -155,6 +155,9 @@ func newAnthropicImplementation(options LlmOptions) (LlmInterface, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to configure anthropic http client: %w", err)
 	}
+	if options.Timeout > 0 {
+		client.Timeout = options.Timeout
+	}
 
 	return &anthropicImplementation{
 		apiKey:          options.ApiKey,

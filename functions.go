@@ -27,6 +27,7 @@ func mergeOptions(oldOptions LlmOptions, newOptions LlmOptions) LlmOptions {
 	options.MockResponse = oldOptions.MockResponse
 	options.MockError = oldOptions.MockError
 	options.Context = oldOptions.Context
+	options.Timeout = oldOptions.Timeout
 	options.DisableResponseFormat = oldOptions.DisableResponseFormat
 
 	if newOptions.Provider != "" {
@@ -85,6 +86,10 @@ func mergeOptions(oldOptions LlmOptions, newOptions LlmOptions) LlmOptions {
 
 	if newOptions.Context != nil {
 		options.Context = newOptions.Context
+	}
+
+	if newOptions.Timeout > 0 {
+		options.Timeout = newOptions.Timeout
 	}
 
 	if newOptions.DisableResponseFormat {

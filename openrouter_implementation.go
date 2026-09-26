@@ -70,6 +70,9 @@ func newOpenRouterImplementation(options LlmOptions) (LlmInterface, error) {
 
 	cfg := openai.DefaultConfig(apiKey)
 	cfg.BaseURL = baseURL
+	if o.Timeout > 0 {
+		cfg.HTTPClient = &http.Client{Timeout: o.Timeout}
+	}
 
 	client := openai.NewClientWithConfig(cfg)
 

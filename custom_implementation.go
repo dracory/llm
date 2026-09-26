@@ -53,7 +53,12 @@ func newCustomImplementation(options LlmOptions) (LlmInterface, error) {
 		model = "default"
 	}
 
-	client := &http.Client{Timeout: 30 * time.Second}
+	timeout := options.Timeout
+	if timeout <= 0 {
+		timeout = 30 * time.Second
+	}
+
+	client := &http.Client{Timeout: timeout}
 
 	return &customImplementation{
 		apiKey:      apiKey,

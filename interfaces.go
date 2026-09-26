@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"time"
 )
 
 // LlmInterface is an interface for making LLM API calls
@@ -42,6 +43,12 @@ type LlmOptions struct {
 	// to cancel in-flight requests or apply deadlines. When nil,
 	// context.Background() is used.
 	Context context.Context `json:"-"`
+
+	// Timeout, if greater than zero, sets the HTTP client timeout for
+	// providers that construct their own client. When zero, each provider's
+	// default is used (30s for Anthropic, Custom and Gemini; no timeout for
+	// the OpenAI-compatible providers).
+	Timeout time.Duration
 
 	// DisableResponseFormat, when true, prevents the provider from sending
 	// a response_format parameter. Useful for providers/models that reject

@@ -53,6 +53,11 @@ func newGeminiImplementation(options LlmOptions) (LlmInterface, error) {
 		modelName = options.Model
 	}
 
+	timeout := options.Timeout
+	if timeout <= 0 {
+		timeout = 30 * time.Second
+	}
+
 	return &geminiImplementation{
 		client:      client,
 		model:       modelName,
@@ -61,7 +66,7 @@ func newGeminiImplementation(options LlmOptions) (LlmInterface, error) {
 		verbose:     options.Verbose,
 		logger:      options.Logger,
 		apiKey:      options.ApiKey,
-		httpClient:  &http.Client{Timeout: 30 * time.Second},
+		httpClient:  &http.Client{Timeout: timeout},
 	}, nil
 }
 
