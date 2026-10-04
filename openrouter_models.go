@@ -450,6 +450,12 @@ const OPENROUTER_MODEL_GPT_5_IMAGE_MINI = "openai/gpt-5-image-mini"
 // Input $10.00/M Output $10/M Context 400,000
 const OPENROUTER_MODEL_GPT_5_IMAGE = "openai/gpt-5-image"
 
+// Recraft Recraft V4.1 Flash
+const OPENROUTER_MODEL_RECRAFT_V4_1_FLASH = "recraft/recraft-v4.1-flash"
+
+// Recraft Recraft V4.1
+const OPENROUTER_MODEL_RECRAFT_V4_1 = "recraft/recraft-v4.1"
+
 // ===========================================================================//
 // Embedding Models
 // ===========================================================================//
