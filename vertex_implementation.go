@@ -349,7 +349,7 @@ func findVertexModelName(modelName string) string {
 		return VERTEX_MODEL_GEMINI_2_5_PRO
 	}
 
-	return VERTEX_MODEL_GEMINI_2_5_FLASH
+	return VERTEX_MODEL_GEMINI_2_5_FLASH_LITE
 }
 
 func buildVertexClientOptions(options LlmOptions) ([]option.ClientOption, error) {

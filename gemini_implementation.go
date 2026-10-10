@@ -47,8 +47,8 @@ func newGeminiImplementation(options LlmOptions) (LlmInterface, error) {
 		return nil, fmt.Errorf("failed to create Gemini client: %w", err)
 	}
 
-	// Default to Gemini Flash model
-	modelName := GEMINI_MODEL_2_5_FLASH
+	// Default to Gemini Flash Lite model
+	modelName := GEMINI_MODEL_2_5_FLASH_LITE
 	if options.Model != "" {
 		modelName = options.Model
 	}

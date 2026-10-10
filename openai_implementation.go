@@ -31,7 +31,7 @@ func newOpenaiImplementation(options LlmOptions) (LlmInterface, error) {
 
 	model := o.Model
 	if model == "" {
-		model = OPENAI_MODEL_GPT_4_TURBO_PREVIEW
+		model = OPENAI_MODEL_GPT_4O_MINI
 	}
 
 	return &openaiImplementation{
