@@ -339,3 +339,6 @@ func (a *anthropicImplementation) GenerateImage(prompt string, opts ...LlmOption
 func (a *anthropicImplementation) GenerateEmbedding(text string) ([]float32, error) {
 	return nil, errors.New("not supported. change to openrouter")
 }
+func (a *anthropicImplementation) Decide(state map[string]any, questions map[string]Question, opts ...LlmOptions) (map[string]Answer, error) {
+	return nil, fmt.Errorf("anthropic provider does not support decisions")
+}

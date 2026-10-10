@@ -358,6 +358,77 @@ func (o *openrouterImplementation) GenerateImage(prompt string, opts ...LlmOptio
 	return imageBytes, nil
 }
 
+// Decide implements DecisionsInterface — posts to the OpenRouter
+// Decisions endpoint (System One contract). The endpoint lives outside
+// the /v1 OpenAI-compatible tree, so the path is derived from baseURL.
+func (o *openrouterImplementation) Decide(state map[string]any, questions map[string]Question, opts ...LlmOptions) (map[string]Answer, error) {
+	perCall := LlmOptions{}
+	if len(opts) > 0 {
+		perCall = opts[0]
+	}
+	merged := mergeOptions(o.baseOptions(), perCall)
+
+	ctx := merged.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	model := merged.Model
+	if model == "" || model == "openrouter/auto" {
+		model = OPENROUTER_MODEL_JEV_1_13
+	}
+
+	url := strings.TrimSuffix(strings.TrimRight(o.baseURL, "/"), "/v1") + "/alpha/decisions"
+	payload, err := json.Marshal(map[string]any{
+		"model":     model,
+		"state":     state,
+		"questions": questions,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(payload))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+o.apiKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	doer := o.httpClient
+	if doer == nil {
+		doer = http.DefaultClient
+	}
+	resp, err := doer.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("decisions: request failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	// Envelope: { state, result: { answers: { <q>: { noul|choice|score, ... } } } }
+	// Some deployments return answers at top level — tolerate both.
+	var out struct {
+		Result struct {
+			Answers map[string]Answer `json:"answers"`
+		} `json:"result"`
+		Answers map[string]Answer `json:"answers"`
+	}
+	if err := json.Unmarshal(body, &out); err != nil {
+		return nil, fmt.Errorf("decisions: bad response: %w", err)
+	}
+	if len(out.Result.Answers) > 0 {
+		return out.Result.Answers, nil
+	}
+	return out.Answers, nil
+}
+
 func (o *openrouterImplementation) GenerateEmbedding(text string) ([]float32, error) {
 	ctx := context.Background()
 

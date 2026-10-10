@@ -248,3 +248,6 @@ func (g *geminiImplementation) GenerateEmbedding(text string) ([]float32, error)
 
 	return embeddings, nil
 }
+func (g *geminiImplementation) Decide(state map[string]any, questions map[string]Question, opts ...LlmOptions) (map[string]Answer, error) {
+	return nil, fmt.Errorf("gemini provider does not support decisions")
+}

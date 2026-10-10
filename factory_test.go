@@ -182,6 +182,10 @@ func (c *CustomTestLLM) GenerateImage(prompt string, opts ...LlmOptions) ([]byte
 	return []byte("test image data"), nil
 }
 
+func (c *CustomTestLLM) Decide(state map[string]any, questions map[string]Question, opts ...LlmOptions) (map[string]Answer, error) {
+	return nil, errors.New("custom test provider does not support decisions")
+}
+
 func (c *CustomTestLLM) GenerateEmbedding(text string) ([]float32, error) {
 	return nil, errors.New("not supported. change to openrouter")
 }

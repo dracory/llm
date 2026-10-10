@@ -231,3 +231,6 @@ func (o *openaiImplementation) GenerateEmbedding(text string) ([]float32, error)
 
 	return resp.Data[0].Embedding, nil
 }
+func (o *openaiImplementation) Decide(state map[string]any, questions map[string]Question, opts ...LlmOptions) (map[string]Answer, error) {
+	return nil, fmt.Errorf("openai provider does not support decisions")
+}

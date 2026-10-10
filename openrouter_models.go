@@ -494,3 +494,37 @@ const OPENROUTER_MODEL_TEXT_EMBEDDING_3_LARGE = "openai/text-embedding-3-large"
 // Released: 2024
 // Input $0.02/M Output $0.00/M
 const OPENROUTER_MODEL_TEXT_EMBEDDING_3_SMALL = "openai/text-embedding-3-small"
+
+// ===========================================================================//
+// Decision Models (System One) — typed probabilities via Decide()
+// ===========================================================================//
+
+// TypeSafe Jev 1.13
+// Released: 2026
+// Input $0.042/M Output $0.00/M Context 65,536
+const OPENROUTER_MODEL_JEV_1_13 = "typesafe/jev-1.13"
+
+// Perplexity Decider V1.1 27B
+// Released: 2026-10
+// Input $0.02/M Output $0.00/M Context 262,144
+const OPENROUTER_MODEL_DECIDER_V1_1_27B = "perplexity/decider-1.1-27b"
+
+// Nace.AI Drex v1.5
+// Released: 2026-10
+// Input $0.04/M Output $0.00/M Context 131,072
+const OPENROUTER_MODEL_DREX_V1_5 = "nace-ai/drex-v1.5"
+
+// Upstage Solar Decide Flash
+// Released: 2026-10
+// Input $0.05/M Output $0.00/M Context 524,288
+const OPENROUTER_MODEL_SOLAR_DECIDE_FLASH = "upstage/solar-decide-flash"
+
+// Microsoft Decision-1
+// Released: 2026-10
+// Input $0.042/M Output $0.00/M Context 33,000
+const OPENROUTER_MODEL_MICROSOFT_DECISION_1 = "microsoft/microsoft-decision-1"
+
+// Cloudflare Clef Omni
+// Released: 2026-10
+// Input $0.15/M Output $0.00/M Context 66,000
+const OPENROUTER_MODEL_CLEF_OMNI = "cloudflare/clef-omni"

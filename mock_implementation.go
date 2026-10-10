@@ -129,6 +129,37 @@ func (m *mockImplementation) GenerateEmbedding(text string) ([]float32, error) {
 	return []float32{0.1, 0.2, 0.3}, nil
 }
 
+// Decide implements LlmInterface for the mock provider — honours
+// MockError, then returns canned answers. Canned answers come from
+// LlmOptions.ProviderOptions["decisions"] (map[string]Answer); absent
+// that, every question gets a zero-valued Answer under its own key.
+func (m *mockImplementation) Decide(state map[string]any, questions map[string]Question, opts ...LlmOptions) (map[string]Answer, error) {
+	options := LlmOptions{}
+	if len(opts) > 0 {
+		options = opts[0]
+	}
+	m.recordCall("Decide", "", "", options)
+
+	if options.MockError != nil {
+		return nil, options.MockError
+	}
+	if m.options.MockError != nil {
+		return nil, m.options.MockError
+	}
+
+	for _, src := range []map[string]any{options.ProviderOptions, m.options.ProviderOptions} {
+		if v, ok := src["decisions"].(map[string]Answer); ok {
+			return v, nil
+		}
+	}
+
+	answers := make(map[string]Answer, len(questions))
+	for name := range questions {
+		answers[name] = Answer{}
+	}
+	return answers, nil
+}
+
 // =======================================================================
 // == MockInterface
 // =======================================================================

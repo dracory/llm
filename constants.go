@@ -18,11 +18,11 @@ type Provider string
 
 // Supported LLM providers
 const (
-	ProviderOpenAI    Provider = "openai"
-	ProviderGemini    Provider = "gemini"
-	ProviderVertex    Provider = "vertex"
-	ProviderMock      Provider = "mock"
-	ProviderAnthropic Provider = "anthropic"
+	ProviderOpenAI     Provider = "openai"
+	ProviderGemini     Provider = "gemini"
+	ProviderVertex     Provider = "vertex"
+	ProviderMock       Provider = "mock"
+	ProviderAnthropic  Provider = "anthropic"
 	ProviderOpenRouter Provider = "openrouter"
-	ProviderCustom    Provider = "custom"
+	ProviderCustom     Provider = "custom"
 )

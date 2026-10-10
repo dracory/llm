@@ -19,6 +19,16 @@ func ImageModel(provider Provider, options LlmOptions) (LlmInterface, error) {
 	return createProvider(provider, OutputFormatImagePNG, options)
 }
 
+// DecisionModel creates a decision model (System One) — answers typed
+// questions about a state object with calibrated probabilities rather
+// than generating text. See interfaces.go for the supported models.
+func DecisionModel(provider Provider, options LlmOptions) (LlmInterface, error) {
+	if options.Model == "" {
+		options.Model = OPENROUTER_MODEL_JEV_1_13
+	}
+	return createProvider(provider, OutputFormatText, options)
+}
+
 // createProvider is a convenience function to create an LLM provider instance with common configurations
 func createProvider(provider Provider, outputFormat OutputFormat, options LlmOptions) (LlmInterface, error) {
 	// Override provider and output format with the specified values

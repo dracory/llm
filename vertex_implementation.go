@@ -418,3 +418,6 @@ func buildVertexClientOptions(options LlmOptions) ([]option.ClientOption, error)
 
 	return nil, nil
 }
+func (l *vertexLlmImpl) Decide(state map[string]any, questions map[string]Question, opts ...LlmOptions) (map[string]Answer, error) {
+	return nil, fmt.Errorf("vertex provider does not support decisions")
+}

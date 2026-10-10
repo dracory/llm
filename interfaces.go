@@ -24,6 +24,75 @@ type LlmInterface interface {
 
 	// GenerateEmbedding generates embeddings for the given text
 	GenerateEmbedding(text string) ([]float32, error)
+
+	// Decide answers typed questions about a state object with
+	// calibrated probabilities (System One decision models — see the
+	// DECISION MODELS block below). Providers without a decisions
+	// endpoint return an error. Use DecisionModel (factory.go) to
+	// construct one directly.
+	Decide(state map[string]any, questions map[string]Question, options ...LlmOptions) (map[string]Answer, error)
+}
+
+// == DECISION MODELS =========================================================
+//
+// Decision models (System One) are NOT generative: instead of producing
+// text they answer typed questions about a state object and return
+// calibrated probabilities. OpenRouter hosts a whole family of them on
+// the shared Decisions contract (POST /alpha/decisions or the
+// /v1/systemone API — the request/response shape is the same):
+//
+//   typesafe/jev-1.13               64K ctx   $0.042/M in, output free
+//   perplexity/decider-1.1-27b     262K ctx   $0.02/M in  (cheapest, ≤128 q/call)
+//   nace-ai/drex-v1.5              128K ctx   $0.04/M in  (open weights)
+//   upstage/solar-decide-flash     524K ctx   $0.05/M in
+//   microsoft/microsoft-decision-1  33K ctx   $0.042/M in
+//   cloudflare/clef-omni            66K ctx   $0.15/M in  (multimodal: images)
+//
+// They are not drop-in chat replacements — they replace the
+// prompt-and-parse step for routing, classification, verification,
+// moderation, and rubric grading. The model is chosen with
+// LlmOptions.Model (default OPENROUTER_MODEL_JEV_1_13 — slugs in
+// openrouter_models.go).
+
+// Question type primitives supported by the Decisions contract.
+const (
+	// QuestionNoul — "does this condition hold?" → probability of yes.
+	QuestionNoul = "noul"
+	// QuestionChoice — "which of these options?" → option + probabilities.
+	QuestionChoice = "choice"
+	// QuestionScore — "where on this ordered scale?" → weighted position.
+	QuestionScore = "score"
+)
+
+// Question is one typed decision question keyed by name in the request.
+type Question struct {
+	// Type is one of QuestionNoul/QuestionChoice/QuestionScore.
+	Type string `json:"type"`
+	// Instructions is the natural-language question.
+	Instructions string `json:"instructions"`
+	// Criteria gives plain-language definitions per outcome — for noul
+	// the keys are "true"/"false"; tuning criteria usually beats tuning
+	// thresholds.
+	Criteria map[string]string `json:"criteria,omitempty"`
+	// Options lists the allowed answers for QuestionChoice.
+	Options []string `json:"options,omitempty"`
+	// Scale lists the ordered labels for QuestionScore.
+	Scale []string `json:"scale,omitempty"`
+}
+
+// Answer is one question's typed result.
+type Answer struct {
+	// Noul is the probability-of-yes for QuestionNoul.
+	Noul float64 `json:"noul,omitempty"`
+	// Choice is the selected option for QuestionChoice.
+	Choice string `json:"choice,omitempty"`
+	// Score is the probability-weighted position for QuestionScore.
+	Score float64 `json:"score,omitempty"`
+	// Probabilities carries per-option/per-level probabilities where the
+	// API returns them.
+	Probabilities map[string]float64 `json:"probabilities,omitempty"`
+	// Confidence is the model's self-reported confidence.
+	Confidence float64 `json:"confidence,omitempty"`
 }
 
 type LlmOptions struct {

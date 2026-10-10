@@ -248,3 +248,6 @@ func decodeBase64Image(data string) ([]byte, error) {
 	}
 	return base64.StdEncoding.DecodeString(data)
 }
+func (c *customImplementation) Decide(state map[string]any, questions map[string]Question, opts ...LlmOptions) (map[string]Answer, error) {
+	return nil, fmt.Errorf("custom provider does not support decisions")
+}
