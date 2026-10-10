@@ -226,23 +226,19 @@ type LlmInterface interface {
 | `ImageModel(provider, options)` | Creates an LLM configured for image generation |
 | `NewLLM(options)` | Low-level constructor with full control |
 
-## OpenRouter Model Constants
+## Provider Model Constants
 
-The package provides pre-defined constants for popular models available via OpenRouter:
+The package provides pre-defined constants with pricing and context window details for each provider:
 
-| Category | Examples |
-|----------|----------|
-| **OpenAI** | `OPENROUTER_MODEL_GPT_5_2`, `OPENROUTER_MODEL_GPT_5_2_CODEX`, `OPENROUTER_MODEL_O4_MINI` |
-| **Anthropic** | `OPENROUTER_MODEL_CLAUDE_SONNET_4_5`, `OPENROUTER_MODEL_CLAUDE_OPUS_4_6`, `OPENROUTER_MODEL_CLAUDE_HAIKU_4_5` |
-| **Google** | `OPENROUTER_MODEL_GEMINI_2_5_PRO`, `OPENROUTER_MODEL_GEMINI_3_PRO_PREVIEW` |
-| **Mistral** | `OPENROUTER_MODEL_MISTRAL_MEDIUM_3_1`, `OPENROUTER_MODEL_DEVSTRAL_2512` |
-| **Qwen** | `OPENROUTER_MODEL_QWEN_3_MAX_THINKING`, `OPENROUTER_MODEL_QWEN_3_CODER_NEXT` |
-| **xAI** | `OPENROUTER_MODEL_GROK_3`, `OPENROUTER_MODEL_GROK_4` |
-| **DeepSeek** | `OPENROUTER_MODEL_DEEPSEEK_V3_1` |
-| **Image** | `OPENROUTER_MODEL_GPT_5_IMAGE`, `OPENROUTER_MODEL_GEMINI_2_5_FLASH_IMAGE` |
-| **Embedding** | `OPENROUTER_MODEL_TEXT_EMBEDDING_3_LARGE`, `OPENROUTER_MODEL_QWEN_3_EMBEDDING_0_6B` |
+| Provider | File | Example Constants |
+|----------|------|-------------------|
+| **OpenAI** | `openai_models.go` | `OPENAI_MODEL_GPT_4O`, `OPENAI_MODEL_GPT_5_2`, `OPENAI_MODEL_DALL_E_3` |
+| **Anthropic** | `anthropic_models.go` | `ANTHROPIC_MODEL_CLAUDE_3_5_SONNET`, `ANTHROPIC_MODEL_CLAUDE_SONNET_4_5` |
+| **Gemini** | `gemini_models.go` | `GEMINI_MODEL_2_5_FLASH`, `GEMINI_MODEL_3_5_FLASH` |
+| **Vertex AI** | `vertex_models.go` | `VERTEX_MODEL_GEMINI_2_5_FLASH`, `VERTEX_MODEL_GEMINI_2_5_PRO` |
+| **OpenRouter** | `openrouter_models.go` | `OPENROUTER_MODEL_GPT_5_2`, `OPENROUTER_MODEL_CLAUDE_SONNET_4_5` |
 
-See `openrouter_models.go` for the full list with pricing and context window sizes.
+All model constant files include detailed comments with release date, input/output pricing per million tokens, context window sizes, and special features.
 
 ## Adding a Custom Provider
 

@@ -13,17 +13,6 @@ import (
 	"google.golang.org/api/option"
 )
 
-// const GEMINI_MODEL_2_0_FLASH = "gemini-2.0-flash-001"
-// const GEMINI_MODEL_2_0_FLASH_LITE = "gemini-2.0-flash-lite-001"
-const GEMINI_MODEL_2_0_FLASH_EXP_IMAGE_GENERATION = "gemini-2.0-flash-exp-image-generation"
-
-const GEMINI_MODEL_2_5_FLASH_LITE = "gemini-2.5-flash-lite"
-const GEMINI_MODEL_2_5_FLASH = "gemini-2.5-flash"
-const GEMINI_MODEL_2_5_PRO = "gemini-2.5-pro"
-
-const GEMINI_MODEL_1_5_PRO = "gemini-1.5-pro"             // supported but now old
-const GEMINI_MODEL_1_5_FLASH = "gemini-1.5-flash"         // supported but now old
-const GEMINI_MODEL_3_0_IMAGEN = "imagen-3.0-generate-002" // not supported
 
 func newVertexImplementation(options LlmOptions) (LlmInterface, error) {
 	o := options
@@ -238,10 +227,10 @@ func (l *vertexLlmImpl) GenerateImage(prompt string, opts ...LlmOptions) ([]byte
 		options.Logger.Debug("Using experimental image generation model",
 			slog.Int("prompt_len", len(prompt)))
 	} else if options.Verbose {
-		fmt.Printf("Vertex AI image generation: model=%s, prompt=%s\n", GEMINI_MODEL_2_0_FLASH_EXP_IMAGE_GENERATION, prompt)
+		fmt.Printf("Vertex AI image generation: model=%s, prompt=%s\n", VERTEX_MODEL_GEMINI_2_0_FLASH_EXP_IMAGE_GENERATION, prompt)
 	}
 
-	model := client.GenerativeModel(GEMINI_MODEL_2_0_FLASH_EXP_IMAGE_GENERATION)
+	model := client.GenerativeModel(VERTEX_MODEL_GEMINI_2_0_FLASH_EXP_IMAGE_GENERATION)
 
 	// Convert values to pointers for generation config
 	temp := float32(derefFloat64(options.Temperature, 0.7))
@@ -357,12 +346,10 @@ func (l *vertexLlmImpl) GenerateEmbedding(text string) ([]float32, error) {
 // - the name of the model
 func findVertexModelName(modelName string) string {
 	if strings.Contains(modelName, "pro") {
-		//return GEMINI_MODEL_2_0_FLASH
-		return GEMINI_MODEL_2_5_PRO
+		return VERTEX_MODEL_GEMINI_2_5_PRO
 	}
 
-	// return GEMINI_MODEL_2_0_FLASH_LITE
-	return GEMINI_MODEL_2_5_FLASH
+	return VERTEX_MODEL_GEMINI_2_5_FLASH
 }
 
 func buildVertexClientOptions(options LlmOptions) ([]option.ClientOption, error) {

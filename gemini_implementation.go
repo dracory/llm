@@ -194,7 +194,7 @@ func (g *geminiImplementation) GenerateEmbedding(text string) ([]float32, error)
 
 	// Gemini requires a custom HTTP request for embeddings
 	reqBody := map[string]interface{}{
-		"model": "models/embedding-001",
+		"model": GEMINI_MODEL_EMBEDDING_001,
 		"text":  text,
 	}
 

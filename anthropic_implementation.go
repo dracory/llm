@@ -148,7 +148,7 @@ func valueFromProviderOrEnv(providerOptions map[string]any, key string, envKey s
 func newAnthropicImplementation(options LlmOptions) (LlmInterface, error) {
 	model := options.Model
 	if model == "" {
-		model = "claude-3-opus-20240229" // Default to Claude 3 Opus
+		model = ANTHROPIC_MODEL_CLAUDE_3_OPUS // Default to Claude 3 Opus
 	}
 
 	client, err := buildAnthropicHTTPClient(options.ProviderOptions)
