@@ -47,8 +47,8 @@ func newGeminiImplementation(options LlmOptions) (LlmInterface, error) {
 		return nil, fmt.Errorf("failed to create Gemini client: %w", err)
 	}
 
-	// Default to Gemini Flash model
-	modelName := GEMINI_MODEL_2_5_FLASH
+	// Default to Gemini Flash Lite model
+	modelName := GEMINI_MODEL_2_5_FLASH_LITE
 	if options.Model != "" {
 		modelName = options.Model
 	}
@@ -194,7 +194,7 @@ func (g *geminiImplementation) GenerateEmbedding(text string) ([]float32, error)
 
 	// Gemini requires a custom HTTP request for embeddings
 	reqBody := map[string]interface{}{
-		"model": "models/embedding-001",
+		"model": GEMINI_MODEL_EMBEDDING_001,
 		"text":  text,
 	}
 
