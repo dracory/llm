@@ -231,6 +231,53 @@ func (o *openaiImplementation) GenerateEmbedding(text string) ([]float32, error)
 
 	return resp.Data[0].Embedding, nil
 }
+
+// GenerateWithTools implements ToolsInterface — runs one chat completion
+// round with the tools declared in LlmOptions.Tools. The caller executes
+// the returned ToolCalls and continues the conversation via
+// LlmOptions.Messages.
+func (o *openaiImplementation) GenerateWithTools(systemPrompt string, userPrompt string, opts ...LlmOptions) (ToolResponse, error) {
+	perCall := LlmOptions{}
+	if len(opts) > 0 {
+		perCall = opts[0]
+	}
+	merged := mergeOptions(o.baseOptions(), perCall)
+
+	ctx := merged.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	req := openai.ChatCompletionRequest{
+		Model:       merged.Model,
+		Messages:    toOpenAIMessages(systemPrompt, merged.Messages, userPrompt),
+		MaxTokens:   merged.MaxTokens,
+		Temperature: float32(derefFloat64(merged.Temperature, o.temperature)),
+		Tools:       toOpenAITools(merged.Tools),
+	}
+	if tc := toOpenAIToolChoice(merged.ToolChoice); tc != nil {
+		req.ToolChoice = tc
+	}
+
+	resp, err := o.client.CreateChatCompletion(ctx, req)
+	if err != nil {
+		if o.logger != nil {
+			o.logger.Error("OpenAI tools generation error",
+				slog.String("error", err.Error()),
+				slog.String("model", merged.Model))
+		} else if o.verbose {
+			fmt.Printf("OpenAI tools generation error: %v\n", err)
+		}
+		return ToolResponse{}, err
+	}
+
+	if len(resp.Choices) == 0 {
+		return ToolResponse{}, fmt.Errorf("no response from OpenAI")
+	}
+
+	return fromOpenAIChoice(resp.Choices[0].Message), nil
+}
+
 func (o *openaiImplementation) Decide(state map[string]any, questions map[string]Question, opts ...LlmOptions) (map[string]Answer, error) {
 	return nil, fmt.Errorf("openai provider does not support decisions")
 }

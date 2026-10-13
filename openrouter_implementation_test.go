@@ -106,6 +106,146 @@ func TestDecide_TopLevelAnswersEnvelope(t *testing.T) {
 	}
 }
 
+// TestGenerateWithTools verifies the tools request wire format and that
+// tool_calls are parsed back into ToolResponse, including the assistant
+// Message needed to continue the conversation.
+func TestGenerateWithTools(t *testing.T) {
+	var got map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/chat/completions" {
+			t.Errorf("unexpected path %s", r.URL.Path)
+		}
+		_ = json.NewDecoder(r.Body).Decode(&got)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{
+			"choices": []map[string]any{{
+				"message": map[string]any{
+					"role": "assistant",
+					"tool_calls": []map[string]any{{
+						"id":   "call_1",
+						"type": "function",
+						"function": map[string]any{
+							"name":      "get_weather",
+							"arguments": `{"city":"London"}`,
+						},
+					}},
+				},
+				"finish_reason": "tool_calls",
+			}},
+		})
+	}))
+	defer srv.Close()
+
+	engine, err := NewLLM(LlmOptions{
+		Provider:        ProviderOpenRouter,
+		ApiKey:          "test-key",
+		Model:           "test-model",
+		ProviderOptions: map[string]any{"base_url": srv.URL},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	toolsLLM, ok := engine.(ToolsInterface)
+	if !ok {
+		t.Fatal("openrouter engine does not implement ToolsInterface")
+	}
+
+	resp, err := toolsLLM.GenerateWithTools("sys", "weather?", LlmOptions{
+		Tools: []Tool{{
+			Name:        "get_weather",
+			Description: "Get weather for a city",
+			Parameters: map[string]any{
+				"type":       "object",
+				"properties": map[string]any{"city": map[string]any{"type": "string"}},
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Request shape: tools array carries the function definition.
+	tools, ok := got["tools"].([]any)
+	if !ok || len(tools) != 1 {
+		t.Fatalf("expected one tool in request, got %v", got["tools"])
+	}
+	fn := tools[0].(map[string]any)["function"].(map[string]any)
+	if fn["name"] != "get_weather" {
+		t.Fatalf("expected tool name get_weather, got %v", fn["name"])
+	}
+	msgs := got["messages"].([]any)
+	if len(msgs) != 2 {
+		t.Fatalf("expected system+user messages, got %d", len(msgs))
+	}
+
+	// Response shape: tool call parsed, assistant message reusable.
+	if len(resp.ToolCalls) != 1 {
+		t.Fatalf("expected one tool call, got %d", len(resp.ToolCalls))
+	}
+	call := resp.ToolCalls[0]
+	if call.ID != "call_1" || call.Name != "get_weather" || call.Arguments != `{"city":"London"}` {
+		t.Fatalf("unexpected tool call %+v", call)
+	}
+	if resp.Message.Role != RoleAssistant || len(resp.Message.ToolCalls) != 1 {
+		t.Fatalf("expected assistant message with tool call, got %+v", resp.Message)
+	}
+}
+
+// TestGenerateWithTools_Continuation verifies tool results are sent back
+// as tool messages with matching tool_call_id.
+func TestGenerateWithTools_Continuation(t *testing.T) {
+	var got map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewDecoder(r.Body).Decode(&got)
+		json.NewEncoder(w).Encode(map[string]any{
+			"choices": []map[string]any{{
+				"message":       map[string]any{"role": "assistant", "content": "It is 12C."},
+				"finish_reason": "stop",
+			}},
+		})
+	}))
+	defer srv.Close()
+
+	engine, _ := NewLLM(LlmOptions{
+		Provider:        ProviderOpenRouter,
+		ApiKey:          "test-key",
+		Model:           "test-model",
+		ProviderOptions: map[string]any{"base_url": srv.URL},
+	})
+	toolsLLM := engine.(ToolsInterface)
+
+	resp, err := toolsLLM.GenerateWithTools("sys", "", LlmOptions{
+		Tools: []Tool{{Name: "get_weather"}},
+		Messages: []Message{
+			{Role: RoleUser, Content: "weather?"},
+			{
+				Role:      RoleAssistant,
+				ToolCalls: []ToolCall{{ID: "call_1", Name: "get_weather", Arguments: `{"city":"London"}`}},
+			},
+			{Role: RoleTool, ToolCallID: "call_1", Name: "get_weather", Content: `{"temp":"12C"}`},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.Content != "It is 12C." {
+		t.Fatalf("unexpected content %q", resp.Content)
+	}
+
+	msgs := got["messages"].([]any)
+	if len(msgs) != 4 { // system + user + assistant + tool
+		t.Fatalf("expected 4 messages, got %d: %v", len(msgs), msgs)
+	}
+	assistant := msgs[2].(map[string]any)
+	if assistant["role"] != RoleAssistant || assistant["tool_calls"] == nil {
+		t.Fatalf("expected assistant tool_calls, got %v", assistant)
+	}
+	tool := msgs[3].(map[string]any)
+	if tool["role"] != RoleTool || tool["tool_call_id"] != "call_1" {
+		t.Fatalf("expected tool result message, got %v", tool)
+	}
+}
+
 func TestDecide_HTTPError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadGateway)

@@ -29,6 +29,9 @@ func mergeOptions(oldOptions LlmOptions, newOptions LlmOptions) LlmOptions {
 	options.Context = oldOptions.Context
 	options.Timeout = oldOptions.Timeout
 	options.DisableResponseFormat = oldOptions.DisableResponseFormat
+	options.Tools = oldOptions.Tools
+	options.ToolChoice = oldOptions.ToolChoice
+	options.Messages = oldOptions.Messages
 
 	if newOptions.Provider != "" {
 		options.Provider = newOptions.Provider
@@ -94,6 +97,18 @@ func mergeOptions(oldOptions LlmOptions, newOptions LlmOptions) LlmOptions {
 
 	if newOptions.DisableResponseFormat {
 		options.DisableResponseFormat = true
+	}
+
+	if newOptions.Tools != nil {
+		options.Tools = newOptions.Tools
+	}
+
+	if newOptions.ToolChoice != "" {
+		options.ToolChoice = newOptions.ToolChoice
+	}
+
+	if newOptions.Messages != nil {
+		options.Messages = newOptions.Messages
 	}
 
 	return options

@@ -13,6 +13,25 @@ const (
 	OutputFormatImageJPG OutputFormat = "image/jpeg"
 )
 
+// Message roles used in LlmOptions.Messages for tool-enabled conversations.
+const (
+	RoleSystem    = "system"
+	RoleUser      = "user"
+	RoleAssistant = "assistant"
+	RoleTool      = "tool"
+)
+
+// ToolChoice values accepted by LlmOptions.ToolChoice. Any other
+// non-empty value is treated as a specific tool name the model must call.
+const (
+	// ToolChoiceAuto lets the model decide whether to call a tool (default).
+	ToolChoiceAuto = "auto"
+	// ToolChoiceNone forbids tool calls.
+	ToolChoiceNone = "none"
+	// ToolChoiceRequired forces the model to call one of the tools.
+	ToolChoiceRequired = "required"
+)
+
 // Provider represents an LLM provider type
 type Provider string
 

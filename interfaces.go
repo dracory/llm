@@ -80,6 +80,83 @@ type Question struct {
 	Scale []string `json:"scale,omitempty"`
 }
 
+// == TOOL CALLING ============================================================
+//
+// Some providers (OpenRouter, OpenAI) expose function/tool calling on
+// chat models. Support is optional: obtain it via a type assertion on
+// the LlmInterface returned by the factory:
+//
+//	toolsLLM, ok := engine.(llm.ToolsInterface)
+//	if !ok { /* provider does not support tools */ }
+//
+// The caller drives the tool loop: pass tool definitions via
+// LlmOptions.Tools, inspect ToolResponse.ToolCalls, execute them, then
+// call again with LlmOptions.Messages set to the prior conversation —
+// resp.Message (the assistant turn) plus one RoleTool Message per
+// result (ToolCallID matching the call, Content with the output).
+
+// Tool describes a callable function exposed to the model.
+type Tool struct {
+	// Name is the function identifier the model will call.
+	Name string `json:"name"`
+	// Description tells the model when to use the tool.
+	Description string `json:"description,omitempty"`
+	// Parameters is a JSON Schema object describing the arguments.
+	// When nil, an empty object schema is sent.
+	Parameters map[string]any `json:"parameters,omitempty"`
+	// Strict requests strict schema adherence where the provider supports it.
+	Strict bool `json:"strict,omitempty"`
+}
+
+// ToolCall is a single function invocation requested by the model.
+type ToolCall struct {
+	// ID correlates the call with its tool-result message.
+	ID string `json:"id,omitempty"`
+	// Name is the requested function.
+	Name string `json:"name,omitempty"`
+	// Arguments is the raw JSON argument object produced by the model.
+	Arguments string `json:"arguments,omitempty"`
+}
+
+// Message is one turn in a tool-enabled conversation, supplied via
+// LlmOptions.Messages to continue a conversation after executing tools.
+type Message struct {
+	// Role is one of RoleSystem/RoleUser/RoleAssistant/RoleTool.
+	Role string `json:"role"`
+	// Content is the text body of the message.
+	Content string `json:"content,omitempty"`
+	// ToolCalls is set on assistant messages that requested tools
+	// (use ToolResponse.Message verbatim).
+	ToolCalls []ToolCall `json:"tool_calls,omitempty"`
+	// ToolCallID is set on RoleTool messages to match the call answered.
+	ToolCallID string `json:"tool_call_id,omitempty"`
+	// Name optionally names the tool that produced a RoleTool message.
+	Name string `json:"name,omitempty"`
+}
+
+// ToolResponse is the result of GenerateWithTools.
+type ToolResponse struct {
+	// Content is the assistant's text (may be empty when tools are called).
+	Content string
+	// ToolCalls lists the function invocations the model requested.
+	ToolCalls []ToolCall
+	// Message is the assistant turn; append it to LlmOptions.Messages
+	// (followed by RoleTool result messages) to continue the loop.
+	Message Message
+}
+
+// ToolsInterface is an optional extension of LlmInterface for providers
+// whose models support function/tool calling. Obtain via type assertion.
+type ToolsInterface interface {
+	LlmInterface
+
+	// GenerateWithTools runs one chat completion round with the tools
+	// declared in LlmOptions.Tools. It does not execute tools — the
+	// caller inspects ToolCalls, runs them, and calls again with
+	// LlmOptions.Messages carrying the assistant turn and tool results.
+	GenerateWithTools(systemPrompt string, userPrompt string, options ...LlmOptions) (ToolResponse, error)
+}
+
 // Answer is one question's typed result.
 type Answer struct {
 	// Noul is the probability-of-yes for QuestionNoul.
@@ -154,6 +231,19 @@ type LlmOptions struct {
 
 	// OutputFormat specifies the output format from the LLM
 	OutputFormat OutputFormat
+
+	// Tools declares functions the model may call (used by
+	// GenerateWithTools on providers implementing ToolsInterface).
+	Tools []Tool
+
+	// ToolChoice controls tool usage: ToolChoiceAuto (default),
+	// ToolChoiceNone, ToolChoiceRequired, or a tool name to force.
+	ToolChoice string
+
+	// Messages carries prior conversation turns for tool-enabled
+	// conversations. When non-empty, they are inserted between the
+	// system prompt and the user prompt.
+	Messages []Message
 
 	// Additional options specific to the LLM provider
 	ProviderOptions map[string]any

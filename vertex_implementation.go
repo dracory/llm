@@ -13,7 +13,6 @@ import (
 	"google.golang.org/api/option"
 )
 
-
 func newVertexImplementation(options LlmOptions) (LlmInterface, error) {
 	o := options
 	// Add checks for required options if needed, e.g. API key

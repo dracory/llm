@@ -215,6 +215,78 @@ func (o *openrouterImplementation) GenerateJSON(systemPrompt string, userPrompt 
 	return o.Generate(systemPrompt, userPrompt, perCall)
 }
 
+// GenerateWithTools implements ToolsInterface — runs one chat completion
+// round with the tools declared in LlmOptions.Tools. The caller executes
+// the returned ToolCalls and continues the conversation via
+// LlmOptions.Messages.
+func (o *openrouterImplementation) GenerateWithTools(systemPrompt string, userPrompt string, opts ...LlmOptions) (ToolResponse, error) {
+	perCall := LlmOptions{}
+	if len(opts) > 0 {
+		perCall = opts[0]
+	}
+	merged := mergeOptions(o.baseOptions(), perCall)
+
+	ctx := merged.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	model := merged.Model
+	maxTokens := merged.MaxTokens
+	temperature := derefFloat64(merged.Temperature, o.temperature)
+	verbose := merged.Verbose
+
+	req := openai.ChatCompletionRequest{
+		Model:       model,
+		Messages:    toOpenAIMessages(systemPrompt, merged.Messages, userPrompt),
+		MaxTokens:   maxTokens,
+		Temperature: float32(temperature),
+		Tools:       toOpenAITools(merged.Tools),
+	}
+	if tc := toOpenAIToolChoice(merged.ToolChoice); tc != nil {
+		req.ToolChoice = tc
+	}
+
+	if o.logger != nil {
+		o.logger.Debug("OpenRouter tools request",
+			slog.String("model", model),
+			slog.Int("max_tokens", maxTokens),
+			slog.Int("tools", len(merged.Tools)),
+			slog.Int("messages", len(req.Messages)))
+	} else if verbose {
+		fmt.Printf("OpenRouter tools request: model=%s, tools=%d, messages=%d\n",
+			model, len(merged.Tools), len(req.Messages))
+	}
+
+	resp, err := o.client.CreateChatCompletion(ctx, req)
+	if err != nil {
+		if o.logger != nil {
+			o.logger.Error("OpenRouter API request failed",
+				slog.String("error", err.Error()),
+				slog.String("model", model),
+				slog.String("base_url", o.baseURL))
+		} else if verbose {
+			fmt.Printf("OpenRouter generation error: %v\n", err)
+		}
+		return ToolResponse{}, err
+	}
+
+	if len(resp.Choices) == 0 {
+		return ToolResponse{}, fmt.Errorf("no response from OpenRouter")
+	}
+
+	out := fromOpenAIChoice(resp.Choices[0].Message)
+	if o.logger != nil {
+		o.logger.Debug("OpenRouter tools response",
+			slog.String("model", model),
+			slog.Int("tool_calls", len(out.ToolCalls)))
+	} else if verbose {
+		fmt.Printf("OpenRouter tools response: tool_calls=%d, content_len=%d\n",
+			len(out.ToolCalls), len(out.Content))
+	}
+	return out, nil
+}
+
 // GenerateImage implements LlmInterface
 // OpenRouter uses the chat completions endpoint with modalities parameter for image generation
 func (o *openrouterImplementation) GenerateImage(prompt string, opts ...LlmOptions) ([]byte, error) {

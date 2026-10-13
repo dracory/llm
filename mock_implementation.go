@@ -129,6 +129,40 @@ func (m *mockImplementation) GenerateEmbedding(text string) ([]float32, error) {
 	return []float32{0.1, 0.2, 0.3}, nil
 }
 
+// GenerateWithTools implements ToolsInterface for the mock provider —
+// honours MockError, then returns a canned ToolResponse from
+// LlmOptions.ProviderOptions["tool_response"] (ToolResponse). Absent
+// that, Content is set from MockResponse with no tool calls.
+func (m *mockImplementation) GenerateWithTools(systemPrompt string, userPrompt string, opts ...LlmOptions) (ToolResponse, error) {
+	options := LlmOptions{}
+	if len(opts) > 0 {
+		options = opts[0]
+	}
+	m.recordCall("GenerateWithTools", systemPrompt, userPrompt, options)
+
+	if options.MockError != nil {
+		return ToolResponse{}, options.MockError
+	}
+	if m.options.MockError != nil {
+		return ToolResponse{}, m.options.MockError
+	}
+
+	for _, src := range []map[string]any{options.ProviderOptions, m.options.ProviderOptions} {
+		if v, ok := src["tool_response"].(ToolResponse); ok {
+			return v, nil
+		}
+	}
+
+	content := options.MockResponse
+	if content == "" {
+		content = m.options.MockResponse
+	}
+	return ToolResponse{
+		Content: content,
+		Message: Message{Role: RoleAssistant, Content: content},
+	}, nil
+}
+
 // Decide implements LlmInterface for the mock provider — honours
 // MockError, then returns canned answers. Canned answers come from
 // LlmOptions.ProviderOptions["decisions"] (map[string]Answer); absent
