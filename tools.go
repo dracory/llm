@@ -12,18 +12,38 @@ func toOpenAITools(tools []Tool) []openai.Tool {
 	}
 	out := make([]openai.Tool, len(tools))
 	for i, t := range tools {
-		params := t.Parameters
-		if params == nil {
-			params = map[string]any{"type": "object", "properties": map[string]any{}}
+		toolType := t.Type
+		if toolType == "" {
+			toolType = string(openai.ToolTypeFunction)
 		}
-		out[i] = openai.Tool{
-			Type: openai.ToolTypeFunction,
-			Function: &openai.FunctionDefinition{
-				Name:        t.Name,
-				Description: t.Description,
-				Parameters:  params,
-				Strict:      t.Strict,
-			},
+
+		if toolType == string(openai.ToolTypeFunction) {
+			params := t.Parameters
+			if params == nil {
+				params = map[string]any{"type": "object", "properties": map[string]any{}}
+			}
+			out[i] = openai.Tool{
+				Type: openai.ToolTypeFunction,
+				Function: &openai.FunctionDefinition{
+					Name:        t.Name,
+					Description: t.Description,
+					Parameters:  params,
+					Strict:      t.Strict,
+				},
+			}
+		} else {
+			tool := openai.Tool{
+				Type: openai.ToolType(toolType),
+			}
+			if t.Name != "" || t.Description != "" || t.Parameters != nil {
+				tool.Function = &openai.FunctionDefinition{
+					Name:        t.Name,
+					Description: t.Description,
+					Parameters:  t.Parameters,
+					Strict:      t.Strict,
+				}
+			}
+			out[i] = tool
 		}
 	}
 	return out
@@ -79,9 +99,13 @@ func toOpenAIMessage(m Message) openai.ChatCompletionMessage {
 		Name:       m.Name,
 	}
 	for _, tc := range m.ToolCalls {
+		tcType := tc.Type
+		if tcType == "" {
+			tcType = string(openai.ToolTypeFunction)
+		}
 		out.ToolCalls = append(out.ToolCalls, openai.ToolCall{
 			ID:   tc.ID,
-			Type: openai.ToolTypeFunction,
+			Type: openai.ToolType(tcType),
 			Function: openai.FunctionCall{
 				Name:      tc.Name,
 				Arguments: tc.Arguments,
@@ -103,8 +127,13 @@ func fromOpenAIChoice(msg openai.ChatCompletionMessage) ToolResponse {
 		},
 	}
 	for _, tc := range msg.ToolCalls {
+		tcType := string(tc.Type)
+		if tcType == "" {
+			tcType = string(openai.ToolTypeFunction)
+		}
 		call := ToolCall{
 			ID:        tc.ID,
+			Type:      tcType,
 			Name:      tc.Function.Name,
 			Arguments: tc.Function.Arguments,
 		}
