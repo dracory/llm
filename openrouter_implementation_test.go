@@ -261,3 +261,81 @@ func TestDecide_HTTPError(t *testing.T) {
 		t.Fatal("expected error on non-200")
 	}
 }
+
+func TestToOpenAITools_ServerTool(t *testing.T) {
+	tools := []Tool{
+		{
+			Type: "openrouter:web_search",
+		},
+		{
+			Name:        "get_stock_price",
+			Description: "Get stock price",
+		},
+	}
+
+	converted := toOpenAITools(tools)
+	if len(converted) != 2 {
+		t.Fatalf("expected 2 converted tools, got %d", len(converted))
+	}
+
+	if string(converted[0].Type) != "openrouter:web_search" {
+		t.Errorf("expected tool[0] type 'openrouter:web_search', got %q", converted[0].Type)
+	}
+	if converted[0].Function != nil {
+		t.Errorf("expected tool[0] function to be nil, got %+v", converted[0].Function)
+	}
+
+	if string(converted[1].Type) != "function" {
+		t.Errorf("expected tool[1] type 'function', got %q", converted[1].Type)
+	}
+	if converted[1].Function == nil || converted[1].Function.Name != "get_stock_price" {
+		t.Errorf("unexpected tool[1] function %+v", converted[1].Function)
+	}
+}
+
+func TestGenerateWithTools_ServerTool(t *testing.T) {
+	var got map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewDecoder(r.Body).Decode(&got)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{
+			"choices": []map[string]any{{
+				"message":       map[string]any{"role": "assistant", "content": "Search results..."},
+				"finish_reason": "stop",
+			}},
+		})
+	}))
+	defer srv.Close()
+
+	engine, err := NewLLM(LlmOptions{
+		Provider:        ProviderOpenRouter,
+		ApiKey:          "test-key",
+		Model:           "test-model",
+		ProviderOptions: map[string]any{"base_url": srv.URL},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	toolsLLM := engine.(ToolsInterface)
+
+	resp, err := toolsLLM.GenerateWithTools("sys", "search for latest Go release", LlmOptions{
+		Tools: []Tool{
+			{Type: "openrouter:web_search"},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.Content != "Search results..." {
+		t.Fatalf("unexpected content %q", resp.Content)
+	}
+
+	tools, ok := got["tools"].([]any)
+	if !ok || len(tools) != 1 {
+		t.Fatalf("expected 1 tool in payload, got %v", got["tools"])
+	}
+	t0 := tools[0].(map[string]any)
+	if t0["type"] != "openrouter:web_search" {
+		t.Fatalf("expected tool type 'openrouter:web_search', got %v", t0["type"])
+	}
+}

@@ -95,14 +95,17 @@ type Question struct {
 // resp.Message (the assistant turn) plus one RoleTool Message per
 // result (ToolCallID matching the call, Content with the output).
 
-// Tool describes a callable function exposed to the model.
+// Tool describes a callable function or server tool exposed to the model.
 type Tool struct {
+	// Type is the tool type (e.g. "function", "openrouter:web_search", "web_search").
+	// When empty, defaults to "function".
+	Type string `json:"type,omitempty"`
 	// Name is the function identifier the model will call.
-	Name string `json:"name"`
+	Name string `json:"name,omitempty"`
 	// Description tells the model when to use the tool.
 	Description string `json:"description,omitempty"`
 	// Parameters is a JSON Schema object describing the arguments.
-	// When nil, an empty object schema is sent.
+	// When nil and Type is "function", an empty object schema is sent.
 	Parameters map[string]any `json:"parameters,omitempty"`
 	// Strict requests strict schema adherence where the provider supports it.
 	Strict bool `json:"strict,omitempty"`
@@ -112,6 +115,8 @@ type Tool struct {
 type ToolCall struct {
 	// ID correlates the call with its tool-result message.
 	ID string `json:"id,omitempty"`
+	// Type is the tool call type (e.g. "function").
+	Type string `json:"type,omitempty"`
 	// Name is the requested function.
 	Name string `json:"name,omitempty"`
 	// Arguments is the raw JSON argument object produced by the model.
